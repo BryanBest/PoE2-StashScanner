@@ -59,4 +59,10 @@ export interface TradeFetchItem {
     implicitMods?: string[];
     craftedMods?: string[];
   };
+  listing?: {
+    price?: {
+      amount: number;
+      currency: string;
+    };
+  };
 }

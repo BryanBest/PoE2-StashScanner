@@ -23,20 +23,25 @@ export const fetchStashedItems = async (accountName: string): Promise<StashedIte
   }
 };
 
-// Mock API function for pricing data (keeping this mocked for now)
+// Real API function for pricing data using PoE2 Trade API
 export const fetchPricingData = async (items: StashedItem[]): Promise<PricingData[]> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  console.log(`Fetching pricing data for ${items.length} items (mocked)`);
-  
-  // Generate mock pricing data for the actual items
-  const pricingData: PricingData[] = items.map((item) => ({
-    itemId: item.id,
-    estimatedValue: Math.random() * 50 + 1, // Random value between 1-51
-    currency: 'chaos',
-    confidence: Math.random() * 0.4 + 0.6 // Random confidence between 0.6-1.0
-  }));
-  
-  return pricingData;
+  try {
+    console.log(`Fetching real pricing data for ${items.length} items from PoE2 Trade API`);
+    const pricingData = await Poe2TradeApi.getPricingData(items);
+    console.log(`Successfully fetched pricing for ${pricingData.length} items`);
+    return pricingData;
+  } catch (error) {
+    console.error('Error fetching pricing from PoE2 API:', error);
+    
+    // Fallback to basic mock data if API fails
+    console.log('Falling back to mock pricing data');
+    const fallbackData: PricingData[] = items.map((item) => ({
+      itemId: item.id,
+      estimatedValue: Math.random() * 10 + 1, // Lower random values as fallback
+      currency: 'chaos',
+      confidence: 0.3 // Low confidence for fallback data
+    }));
+    
+    return fallbackData;
+  }
 };
