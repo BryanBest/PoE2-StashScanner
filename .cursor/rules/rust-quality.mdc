@@ -1,0 +1,5 @@
+---
+globs: *.rs
+alwaysApply: false
+---
+from the "poe-stash/src-tauri" folder, run "cargo clippy" and resolve any issues

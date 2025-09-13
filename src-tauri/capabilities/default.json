@@ -1,0 +1,22 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "http:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://www.pathofexile.com/api/trade2/*"
+        },
+        {
+          "url": "https://poe2helper.com/api/*"
+        }
+      ]
+    }
+  ]
+}
