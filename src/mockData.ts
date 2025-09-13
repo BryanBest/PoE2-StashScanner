@@ -10,10 +10,10 @@ export const mockPricingData: PricingData[] = [
 ];
 
 // Real API function for fetching stashed items
-export const fetchStashedItems = async (accountName: string): Promise<StashedItem[]> => {
+export const fetchStashedItems = async (accountName: string, existingItems: StashedItem[] = []): Promise<StashedItem[]> => {
   try {
     console.log(`Fetching real stashed items for account: ${accountName}`);
-    const items = await Poe2TradeApi.fetchStashedItems(accountName);
+    const items = await Poe2TradeApi.fetchStashedItems(accountName, existingItems);
     console.log(`Successfully fetched ${items.length} items from PoE2 API`);
     return items;
   } catch (error) {
@@ -43,5 +43,31 @@ export const fetchPricingData = async (items: StashedItem[]): Promise<PricingDat
     }));
     
     return fallbackData;
+  }
+};
+
+// Real API function for incremental pricing data using PoE2 Trade API
+export const fetchPricingDataIncremental = async (
+  items: StashedItem[], 
+  onItemPriced: (itemId: string, pricing: PricingData) => void
+): Promise<void> => {
+  try {
+    console.log(`Fetching real pricing data incrementally for ${items.length} items from PoE2 Trade API`);
+    await Poe2TradeApi.getPricingDataIncremental(items, onItemPriced);
+    console.log(`Successfully completed incremental pricing for ${items.length} items`);
+  } catch (error) {
+    console.error('Error fetching incremental pricing from PoE2 API:', error);
+    
+    // Fallback to basic mock data if API fails
+    console.log('Falling back to mock pricing data');
+    items.forEach((item) => {
+      const fallbackPricing: PricingData = {
+        itemId: item.id,
+        estimatedValue: Math.random() * 10 + 1, // Lower random values as fallback
+        currency: 'chaos',
+        confidence: 0.3 // Low confidence for fallback data
+      };
+      onItemPriced(item.id, fallbackPricing);
+    });
   }
 };

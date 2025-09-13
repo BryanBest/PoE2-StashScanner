@@ -77,8 +77,8 @@ const ItemCard: React.FC<ItemCardProps> = ({ item }) => {
               color: (item.estimatedValue && item.estimatedValue > 0) ? 'inherit' : '#ff4444' 
             }}
           >
-            {item.estimatedValue && item.estimatedValue > 0 
-              ? `${item.estimatedValue} ${item.currency?.charAt(0).toUpperCase() + item.currency?.slice(1)}` 
+            {item.estimatedValue && item.estimatedValue > 0 && item.currency
+              ? `${item.estimatedValue} ${item.currency.charAt(0).toUpperCase() + item.currency.slice(1)}`
               : 'Value Unknown'
             }
           </span>

@@ -77,7 +77,7 @@ export class ModMappingService {
   private static cleanModText(text: string): string {
     return text
       .replace(/\d+/g, '#') // Replace numbers with #
-      .replace(/\[([^\]]*\|[^\]]*)\]/g, (match, content) => {
+      .replace(/\[([^\]]*\|[^\]]*)\]/g, (_match, content) => {
         // Handle [term1|term2] format - use the last term after |
         const parts = content.split('|');
         return parts[parts.length - 1].trim();

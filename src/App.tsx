@@ -4,7 +4,8 @@ import AccountInput from "./components/AccountInput";
 import PriceCheckButton from "./components/PriceCheckButton";
 import ItemCard from "./components/ItemCard";
 import { StashedItem } from "./types";
-import { fetchStashedItems, fetchPricingData } from "./mockData";
+import { fetchStashedItems, fetchPricingDataIncremental } from "./mockData";
+import { Poe2TradeApi } from "./api/poe2TradeApi";
 
 function App() {
   const [items, setItems] = useState<StashedItem[]>([]);
@@ -14,10 +15,17 @@ function App() {
 
   const handleFetchItems = async (account: string) => {
     setIsLoadingItems(true);
+    
+    // Clear cache and items if switching to a different account
+    if (accountName && accountName !== account) {
+      Poe2TradeApi.clearCache();
+      setItems([]);
+    }
+    
     setAccountName(account);
-    setItems([]); // Clear previous items
+    
     try {
-      const fetchedItems = await fetchStashedItems(account);
+      const fetchedItems = await fetchStashedItems(account, items);
       setItems(fetchedItems);
       
       if (fetchedItems.length === 0) {
@@ -36,19 +44,21 @@ function App() {
     
     setIsLoadingPrices(true);
     try {
-      const pricingData = await fetchPricingData(items);
-      
-      // Update items with pricing information
-      const updatedItems = items.map(item => {
-        const pricing = pricingData.find(p => p.itemId === item.id);
-        return pricing ? {
-          ...item,
-          estimatedValue: pricing.estimatedValue,
-          currency: pricing.currency
-        } : item;
+      // Use incremental pricing to update UI as each item gets priced
+      await fetchPricingDataIncremental(items, (itemId: string, pricing) => {
+        // Update the specific item with its pricing data
+        setItems(prevItems => 
+          prevItems.map(item => 
+            item.id === itemId 
+              ? {
+                  ...item,
+                  estimatedValue: pricing.estimatedValue,
+                  currency: pricing.currency
+                }
+              : item
+          )
+        );
       });
-      
-      setItems(updatedItems);
     } catch (error) {
       console.error("Error fetching pricing data:", error);
     } finally {

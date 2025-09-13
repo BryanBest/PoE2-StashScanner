@@ -14,6 +14,17 @@ const POE2_TRADE_API_BASE = 'https://www.pathofexile.com/api/trade2';
 const LEAGUE = 'Rise%20of%20the%20Abyssal';
 
 export class Poe2TradeApi {
+  // Cache for item details to avoid re-fetching
+  private static itemDetailsCache = new Map<string, StashedItem>();
+
+  /**
+   * Clear the item details cache (useful when switching accounts)
+   */
+  static clearCache(): void {
+    this.itemDetailsCache.clear();
+    console.log('Item details cache cleared');
+  }
+
   /**
    * Search for items by account name using Tauri's HTTP plugin
    */
@@ -151,8 +162,10 @@ export class Poe2TradeApi {
 
   /**
    * Main function to fetch all stashed items for an account
+   * @param accountName - The account name to search for
+   * @param existingItems - Optional array of existing items to avoid re-fetching
    */
-  static async fetchStashedItems(accountName: string): Promise<StashedItem[]> {
+  static async fetchStashedItems(accountName: string, existingItems: StashedItem[] = []): Promise<StashedItem[]> {
     try {
       console.log(`Searching for items for account: ${accountName}`);
       
@@ -164,19 +177,54 @@ export class Poe2TradeApi {
         return [];
       }
 
-      // Step 2: Wait 1 second to avoid rate limits
-      console.log('Waiting 1 second to avoid rate limits...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Step 2: Filter out items we already have details for
+      const existingItemIds = new Set(existingItems.map(item => item.id));
+      const cachedItemIds = new Set(Array.from(this.itemDetailsCache.keys()));
+      
+      const itemsToFetch = searchResponse.result.filter(itemId => 
+        !existingItemIds.has(itemId) && !cachedItemIds.has(itemId)
+      );
+      
+      console.log(`Found ${itemsToFetch.length} new items to fetch (${searchResponse.result.length - itemsToFetch.length} already cached)`);
+      
+      let allStashedItems: StashedItem[] = [];
+      
+      // Step 3: Add existing items to result
+      allStashedItems.push(...existingItems);
+      
+      // Step 4: Add cached items to result
+      for (const itemId of searchResponse.result) {
+        if (cachedItemIds.has(itemId) && !existingItemIds.has(itemId)) {
+          const cachedItem = this.itemDetailsCache.get(itemId);
+          if (cachedItem) {
+            allStashedItems.push(cachedItem);
+          }
+        }
+      }
+      
+      // Step 5: Fetch new items if any
+      if (itemsToFetch.length > 0) {
+        // Wait 1 second to avoid rate limits
+        console.log('Waiting 1 second to avoid rate limits...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Step 3: Fetch detailed item data
-      console.log(`Fetching details for ${searchResponse.result.length} items...`);
-      const itemDetails = await this.fetchItemDetails(searchResponse.result);
+        // Fetch detailed item data for new items
+        console.log(`Fetching details for ${itemsToFetch.length} new items...`);
+        const itemDetails = await this.fetchItemDetails(itemsToFetch);
+        
+        // Convert to our format and cache them
+        const newStashedItems = itemDetails.map(item => {
+          const stashedItem = this.convertApiItemToStashedItem(item);
+          // Cache the item for future use
+          this.itemDetailsCache.set(item.id, stashedItem);
+          return stashedItem;
+        });
+        
+        allStashedItems.push(...newStashedItems);
+      }
       
-      // Step 4: Convert to our format
-      const stashedItems = itemDetails.map(item => this.convertApiItemToStashedItem(item));
-      
-      console.log(`Successfully processed ${stashedItems.length} items`);
-      return stashedItems;
+      console.log(`Successfully processed ${allStashedItems.length} items (${itemsToFetch.length} newly fetched)`);
+      return allStashedItems;
       
     } catch (error) {
       console.error('Error fetching stashed items:', error);
@@ -413,5 +461,65 @@ export class Poe2TradeApi {
     
     console.log(`✅ Completed pricing ${items.length} items`);
     return pricingData;
+  }
+
+  /**
+   * Get pricing data for multiple items with incremental updates via callback
+   */
+  static async getPricingDataIncremental(
+    items: StashedItem[], 
+    onItemPriced: (itemId: string, pricing: PricingData) => void
+  ): Promise<void> {
+    console.log(`🏷️ Starting to price ${items.length} items with incremental updates...`);
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      try {
+        const priceResult = await this.getItemPrice(item);
+        
+        let pricing: PricingData;
+        if (priceResult) {
+          pricing = {
+            itemId: item.id,
+            estimatedValue: priceResult.price,
+            currency: priceResult.currency,
+            confidence: 0.75
+          };
+        } else {
+          // No price found
+          pricing = {
+            itemId: item.id,
+            estimatedValue: 0,
+            currency: 'chaos',
+            confidence: 0.1
+          };
+        }
+        
+        // Notify the callback immediately
+        onItemPriced(item.id, pricing);
+        
+        // Wait 3 seconds between requests (except for the last item)
+        if (i < items.length - 1) {
+          console.log(`⏱️ Waiting 3 seconds before next request... (${i + 1}/${items.length})`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+        
+      } catch (error) {
+        console.error(`Error pricing item ${item.name}:`, error);
+        
+        // Add fallback pricing data and notify callback
+        const fallbackPricing: PricingData = {
+          itemId: item.id,
+          estimatedValue: 0,
+          currency: 'chaos',
+          confidence: 0.1
+        };
+        
+        onItemPriced(item.id, fallbackPricing);
+      }
+    }
+    
+    console.log(`✅ Completed pricing ${items.length} items`);
   }
 }
