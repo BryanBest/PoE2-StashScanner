@@ -38,6 +38,7 @@ function App() {
   const [selectedLeague, setSelectedLeague] = useState<string>("Rise of the Abyssal");
   const [currentLeague, setCurrentLeague] = useState<string>("Rise%20of%20the%20Abyssal");
   const [currencyValues, setCurrencyValues] = useState<Record<string, number>>({});
+  const [threshold, setThreshold] = useState<number>(10);
 
   // Fetch currency values using Poe2HelperApi
   const fetchCurrencyValues = async (league: string) => {
@@ -96,6 +97,45 @@ function App() {
 
   // Set global conversion function for debugging
   globalConvertToExalts = convertToExalts;
+
+  // Play alert sound for high-value items
+  const playAlertSound = () => {
+    try {
+      // Create a simple beep sound using Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+      
+      console.log('🔔 Alert: High-value item detected!');
+    } catch (error) {
+      console.error('Error playing alert sound:', error);
+      // Fallback: just log to console
+      console.log('🔔 BEEP! High-value item detected!');
+    }
+  };
+
+  // Check if item value exceeds threshold and play alert
+  const checkThresholdAlert = (item: StashedItem, pricing: any) => {
+    if (pricing.estimatedValue && pricing.currency) {
+      const converted = convertToExalts(pricing.estimatedValue, pricing.currency);
+      if (converted.value >= threshold) {
+        console.log(`High-value item detected: ${item.name} - ${converted.displayText}`);
+        playAlertSound();
+      }
+    }
+  };
 
   // Fetch leagues when the app first loads (only once)
   useEffect(() => {
@@ -199,6 +239,14 @@ function App() {
     try {
       // Use incremental pricing to update UI as each item gets priced
       await fetchPricingDataIncremental(itemsToPrice, (itemId: string, pricing) => {
+        // Find the item to check threshold
+        const item = itemsToPrice.find(item => item.id === itemId);
+        
+        // Check threshold and play alert if needed
+        if (item) {
+          checkThresholdAlert(item, pricing);
+        }
+        
         // Update the specific item with its pricing data and clear queued state
         setItems(prevItems => 
           prevItems.map(item => 
@@ -248,6 +296,11 @@ function App() {
     console.log('Formatted league for API:', formattedLeague);
   };
 
+  const handleThresholdChange = (newThreshold: number) => {
+    setThreshold(newThreshold);
+    console.log('Threshold changed to:', newThreshold);
+  };
+
   return (
     <>
       <GearIcon onClick={handleSettingsOpen} />
@@ -258,6 +311,8 @@ function App() {
         leagues={leagues}
         selectedLeague={selectedLeague}
         onLeagueChange={handleLeagueChange}
+        threshold={threshold}
+        onThresholdChange={handleThresholdChange}
       />
 
       <main className="container">
