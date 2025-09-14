@@ -92,6 +92,64 @@ export class Poe2TradeApi {
   }
 
   /**
+   * Debug method to test complete item flow: fetchItemDetails -> convertApiItemToStashedItem -> getItemPrice
+   * @param itemId - Single item ID to debug
+   */
+  static async debugPricingAlgo(itemId: string): Promise<void> {
+    console.log(`🧪 Debug: Testing complete item flow for item ID: ${itemId}`);
+    
+    try {
+      // Step 1: Fetch item details from API
+      console.log(`\n📡 Step 1: Fetching item details from API...`);
+      const apiItems = await this.fetchItemDetails([itemId]);
+      
+      if (apiItems.length === 0) {
+        console.log(`❌ No item found with ID: ${itemId}`);
+        return;
+      }
+      
+      const apiItem = apiItems[0];
+      console.log(`✅ Fetched API item data:`, JSON.stringify(apiItem, null, 2));
+      
+      // Step 2: Convert to StashedItem format
+      console.log(`\n📦 Step 2: Converting to StashedItem format...`);
+      const stashedItem = this.convertApiItemToStashedItem(apiItem);
+      console.log(`✅ Converted item:`, JSON.stringify(stashedItem, null, 2));
+      
+      // Step 3: Get pricing
+      console.log(`\n💰 Step 3: Getting item pricing...`);
+      const pricingResult = await this.getItemPrice(stashedItem);
+      
+      if (pricingResult) {
+        console.log(`✅ Pricing successful:`, pricingResult);
+        console.log(`💰 Item "${stashedItem.name}" is worth ${pricingResult.price} ${pricingResult.currency}`);
+        
+        // Step 4: Convert to exalts if possible
+        console.log(`\n💎 Step 4: Converting to exalts...`);
+        try {
+          const convertToExalts = (window as any).convertToExalts;
+          if (convertToExalts && typeof convertToExalts === 'function') {
+            const exaltConversion = convertToExalts(pricingResult.price, pricingResult.currency);
+            console.log(`✅ Exalt conversion: ${exaltConversion.displayText}`);
+            console.log(`💎 Raw exalt value: ${exaltConversion.value}`);
+          } else {
+            console.log(`⚠️ Currency conversion function not available`);
+          }
+        } catch (error) {
+          console.log(`❌ Error converting to exalts:`, error);
+        }
+      } else {
+        console.log(`❌ No pricing found for item: ${stashedItem.name}`);
+      }
+      
+      console.log(`\n🎯 Debug complete!`);
+      
+    } catch (error) {
+      console.error(`❌ Error in item flow debug:`, error);
+    }
+  }
+
+  /**
    * Search for items by account name using Tauri's HTTP plugin
    */
   static async searchAccountItems(accountName: string): Promise<TradeSearchResponse> {

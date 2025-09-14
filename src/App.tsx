@@ -77,7 +77,9 @@ function App() {
     }
 
     // Convert to exalts
-    const exaltValue = value / currencyRate;
+    // currencyRate represents how many exalts 1 unit of this currency is worth
+    // So we multiply the value by the rate to get exalt equivalent
+    const exaltValue = value * currencyRate;
     
     // Format the display text
     if (exaltValue >= 1) {
@@ -156,21 +158,32 @@ function App() {
         console.log('Number of leagues available:', fetchedLeagues.length);
         
         // Set default league if available
-        if (fetchedLeagues.length > 0 && !fetchedLeagues.includes(selectedLeague)) {
-          setSelectedLeague(fetchedLeagues[0]);
-          // Also update the formatted league
-          const formattedLeague = fetchedLeagues[0].replace(/\s+/g, '%20');
-          setCurrentLeague(formattedLeague);
-          
-          // Update the league in both API classes
-          Poe2TradeApi.setLeague(formattedLeague);
-          Poe2HelperApi.setLeague(formattedLeague);
-          
-          // Fetch currency values for the default league
-          await fetchCurrencyValues(formattedLeague);
-        } else {
-          // Fetch currency values for the current league
-          await fetchCurrencyValues(currentLeague);
+        if (fetchedLeagues.length > 0) {
+          // Check if our selected league is in the fetched leagues
+          if (fetchedLeagues.includes(selectedLeague)) {
+            // Use the selected league (it's valid)
+            const formattedLeague = selectedLeague.replace(/\s+/g, '%20');
+            setCurrentLeague(formattedLeague);
+            
+            // Update the league in both API classes
+            Poe2TradeApi.setLeague(formattedLeague);
+            Poe2HelperApi.setLeague(formattedLeague);
+            
+            // Fetch currency values for the selected league
+            await fetchCurrencyValues(formattedLeague);
+          } else {
+            // Selected league not found, use the first available league
+            setSelectedLeague(fetchedLeagues[0]);
+            const formattedLeague = fetchedLeagues[0].replace(/\s+/g, '%20');
+            setCurrentLeague(formattedLeague);
+            
+            // Update the league in both API classes
+            Poe2TradeApi.setLeague(formattedLeague);
+            Poe2HelperApi.setLeague(formattedLeague);
+            
+            // Fetch currency values for the default league
+            await fetchCurrencyValues(formattedLeague);
+          }
         }
         
         // Leagues are now available for future use (league selection, etc.)
