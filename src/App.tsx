@@ -39,6 +39,11 @@ function App() {
   const [currentLeague, setCurrentLeague] = useState<string>("Rise%20of%20the%20Abyssal");
   const [currencyValues, setCurrencyValues] = useState<Record<string, number>>({});
   const [threshold, setThreshold] = useState<number>(10);
+  const [isLiveSearchEnabled, setIsLiveSearchEnabled] = useState<boolean>(false);
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
+  const liveSearchIntervalRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
+  const itemsRef = useRef<StashedItem[]>([]);
 
   // Fetch currency values using Poe2HelperApi
   const fetchCurrencyValues = async (league: string) => {
@@ -201,7 +206,8 @@ function App() {
     setIsLoadingItems(true);
     
     // Clear cache and items if switching to a different account
-    if (accountName && accountName !== account) {
+    // Only clear if we actually had a previous account name and it's different
+    if (accountName && accountName.trim() !== "" && accountName !== account) {
       Poe2TradeApi.clearCache();
       setItems([]);
     }
@@ -218,12 +224,21 @@ function App() {
       if (fetchedItems.length === 0) {
         console.log(`No items found for account: ${account}`);
       } else {
-        // Automatically trigger pricing after items are loaded (this runs in background)
-        console.log(`Loaded ${fetchedItems.length} items, starting automatic price check...`);
-        // Don't await this - let it run in background while items are already displayed
-        handlePriceCheck(fetchedItems).catch(error => {
-          console.error("Error during automatic price check:", error);
-        });
+        // Check if any items need pricing before triggering price check
+        const itemsNeedingPricing = fetchedItems.filter(item => 
+          item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
+        );
+        
+        if (itemsNeedingPricing.length > 0) {
+          // Automatically trigger pricing after items are loaded (this runs in background)
+          console.log(`Loaded ${fetchedItems.length} items, ${itemsNeedingPricing.length} need pricing, starting automatic price check...`);
+          // Don't await this - let it run in background while items are already displayed
+          handlePriceCheck(itemsNeedingPricing).catch(error => {
+            console.error("Error during automatic price check:", error);
+          });
+        } else {
+          console.log(`Loaded ${fetchedItems.length} items, all already have pricing data`);
+        }
       }
     } catch (error) {
       console.error("Error fetching items:", error);
@@ -235,15 +250,10 @@ function App() {
   const handlePriceCheck = async (itemsToPrice: StashedItem[] = items) => {
     if (itemsToPrice.length === 0) return;
     
-    // Filter items that need pricing and mark them as queued
-    const itemsNeedingPricing = itemsToPrice.filter(item => 
-      item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
-    );
-    
     // Set queued state for items that need pricing
     setItems(prevItems => 
       prevItems.map(item => 
-        itemsNeedingPricing.some(needingItem => needingItem.id === item.id)
+        itemsToPrice.some(needingItem => needingItem.id === item.id)
           ? { ...item, isQueuedForPricing: true }
           : item
       )
@@ -314,9 +324,112 @@ function App() {
     console.log('Threshold changed to:', newThreshold);
   };
 
+  // Live search functionality
+  const startLiveSearch = async (currentAccountName: string) => {
+    if (!currentAccountName.trim()) {
+      console.log('Cannot start live search: no account name entered');
+      return;
+    }
+
+    console.log('Starting live search for account:', currentAccountName);
+    setIsLiveSearchEnabled(true);
+    setCountdownSeconds(60);
+
+    // Start the countdown
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdownSeconds(prev => {
+        if (prev <= 1) {
+          return 60; // Reset to 60 when it reaches 0
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Perform initial fetch
+    await handleFetchItems(currentAccountName);
+
+    // Set up interval for subsequent fetches
+    liveSearchIntervalRef.current = setInterval(async () => {
+      // Use the current items state to preserve pricing data
+      setIsLoadingItems(true);
+      
+      try {
+        // Get current items state at the time of the interval
+        const currentItems = itemsRef.current; // Use ref to get current items
+        const fetchedItems = await fetchStashedItems(currentAccountName, currentItems);
+        setItems(fetchedItems);
+        
+        // Check if any items need pricing before triggering price check
+        const itemsNeedingPricing = fetchedItems.filter(item => 
+          item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
+        );
+        
+        if (itemsNeedingPricing.length > 0) {
+          console.log(`Live search: ${fetchedItems.length} items total, ${itemsNeedingPricing.length} need pricing`);
+          handlePriceCheck(itemsNeedingPricing).catch(error => {
+            console.error("Error during live search price check:", error);
+          });
+        } else {
+          console.log(`Live search: ${fetchedItems.length} items, all already have pricing data`);
+        }
+        
+      } catch (error) {
+        console.error('Live search failed:', error);
+        // Disable live search on error
+        stopLiveSearch();
+      } finally {
+        setIsLoadingItems(false);
+      }
+    }, 60000); // 60 seconds
+  };
+
+  const stopLiveSearch = () => {
+    console.log('Stopping live search');
+    setIsLiveSearchEnabled(false);
+    setCountdownSeconds(0);
+    
+    // Clear intervals
+    if (liveSearchIntervalRef.current) {
+      clearInterval(liveSearchIntervalRef.current);
+      liveSearchIntervalRef.current = null;
+    }
+    
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+  };
+
+  const handleLiveSearchToggle = (currentAccountName: string) => {
+    if (isLiveSearchEnabled) {
+      // Stop live search immediately - this only stops the interval, doesn't interrupt ongoing operations
+      stopLiveSearch();
+    } else {
+      // Start live search with the provided account name
+      startLiveSearch(currentAccountName);
+    }
+  };
+
+  // Keep itemsRef in sync with items state
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  // Cleanup intervals on component unmount
+  useEffect(() => {
+    return () => {
+      if (liveSearchIntervalRef.current) {
+        clearInterval(liveSearchIntervalRef.current);
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, []);
+
   return (
     <>
-      <GearIcon onClick={handleSettingsOpen} />
+      <GearIcon onClick={handleSettingsOpen} disabled={isLiveSearchEnabled} />
       
       <Settings
         isOpen={isSettingsOpen}
@@ -326,12 +439,17 @@ function App() {
         onLeagueChange={handleLeagueChange}
         threshold={threshold}
         onThresholdChange={handleThresholdChange}
+        isDisabled={isLiveSearchEnabled}
       />
 
       <main className="container">
         <AccountInput 
           onFetchItems={handleFetchItems}
           isLoading={isLoadingItems}
+          isLiveSearchEnabled={isLiveSearchEnabled}
+          onLiveSearchToggle={handleLiveSearchToggle}
+          countdownSeconds={countdownSeconds}
+          isDisabled={isLiveSearchEnabled}
         />
       
 

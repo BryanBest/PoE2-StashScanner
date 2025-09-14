@@ -4,9 +4,20 @@ import './AccountInput.css';
 interface AccountInputProps {
   onFetchItems: (accountName: string) => void;
   isLoading: boolean;
+  isLiveSearchEnabled: boolean;
+  onLiveSearchToggle: (accountName: string) => void;
+  countdownSeconds: number;
+  isDisabled: boolean;
 }
 
-const AccountInput: React.FC<AccountInputProps> = ({ onFetchItems, isLoading }) => {
+const AccountInput: React.FC<AccountInputProps> = ({ 
+  onFetchItems, 
+  isLoading, 
+  isLiveSearchEnabled, 
+  onLiveSearchToggle, 
+  countdownSeconds, 
+  isDisabled 
+}) => {
   const [accountName, setAccountName] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -27,15 +38,39 @@ const AccountInput: React.FC<AccountInputProps> = ({ onFetchItems, isLoading }) 
             onChange={(e) => setAccountName(e.target.value)}
             placeholder="Enter your POE2 account name..."
             className="account-input"
-            disabled={isLoading}
+            disabled={isLoading || isDisabled}
           />
           <button 
             type="submit" 
             className="fetch-button"
-            disabled={isLoading || !accountName.trim()}
+            disabled={isLoading || !accountName.trim() || isDisabled}
           >
             {isLoading ? 'Loading...' : 'Fetch Stash Items'}
           </button>
+        </div>
+        <div className="live-search-controls">
+          <label className="live-search-toggle">
+            <input
+              type="checkbox"
+              checked={isLiveSearchEnabled}
+              onChange={() => {
+                if (isLiveSearchEnabled) {
+                  // Disabling live search - no account name needed
+                  onLiveSearchToggle('');
+                } else {
+                  // Enabling live search - need account name
+                  onLiveSearchToggle(accountName);
+                }
+              }}
+              disabled={!accountName.trim()}
+            />
+            <span className="toggle-label">Live Search</span>
+          </label>
+          {isLiveSearchEnabled && (
+            <div className="countdown-display">
+              Next fetch in: {countdownSeconds}s
+            </div>
+          )}
         </div>
       </form>
     </div>

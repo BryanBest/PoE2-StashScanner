@@ -3,11 +3,17 @@ import './GearIcon.css';
 
 interface GearIconProps {
   onClick: () => void;
+  disabled?: boolean;
 }
 
-const GearIcon: React.FC<GearIconProps> = ({ onClick }) => {
+const GearIcon: React.FC<GearIconProps> = ({ onClick, disabled = false }) => {
   return (
-    <button className="gear-icon" onClick={onClick} title="Settings">
+    <button 
+      className="gear-icon" 
+      onClick={disabled ? undefined : onClick} 
+      title={disabled ? "Settings disabled during live search" : "Settings"}
+      disabled={disabled}
+    >
       <svg 
         width="55" 
         height="55" 

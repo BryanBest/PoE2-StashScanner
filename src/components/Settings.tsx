@@ -9,6 +9,7 @@ interface SettingsProps {
   onLeagueChange: (league: string) => void | Promise<void>;
   threshold: number;
   onThresholdChange: (threshold: number) => void;
+  isDisabled?: boolean;
   // Interface updated with threshold support
 }
 
@@ -19,16 +20,21 @@ const Settings: React.FC<SettingsProps> = ({
   selectedLeague, 
   onLeagueChange,
   threshold,
-  onThresholdChange
+  onThresholdChange,
+  isDisabled = false
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="settings-overlay" onClick={onClose}>
+    <div className="settings-overlay" onClick={isDisabled ? undefined : onClose}>
       <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <h3>Settings</h3>
-          <button className="settings-close" onClick={onClose}>
+          <button 
+            className="settings-close" 
+            onClick={onClose}
+            disabled={isDisabled}
+          >
             ×
           </button>
         </div>
@@ -41,6 +47,7 @@ const Settings: React.FC<SettingsProps> = ({
               value={selectedLeague}
               onChange={(e) => onLeagueChange(e.target.value)}
               className="league-dropdown"
+              disabled={isDisabled}
             >
               {leagues.map((league) => (
                 <option key={league} value={league}>
@@ -65,6 +72,7 @@ const Settings: React.FC<SettingsProps> = ({
               value={threshold}
               onChange={(e) => onThresholdChange(parseInt(e.target.value) || 10)}
               className="threshold-input"
+              disabled={isDisabled}
             />
           </div>
         </div>

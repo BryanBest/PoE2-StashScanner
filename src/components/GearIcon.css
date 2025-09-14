@@ -38,6 +38,26 @@
   transform: rotate(90deg);
 }
 
+.gear-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+  border-color: #333;
+  color: #666;
+}
+
+.gear-icon:disabled:hover {
+  background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+  border-color: #333;
+  color: #666;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.gear-icon:disabled:hover svg {
+  transform: none;
+}
+
 /* Dark theme adjustments */
 @media (prefers-color-scheme: dark) {
   .gear-icon {

@@ -84,6 +84,53 @@
   box-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
 }
 
+/* Live Search Controls */
+.live-search-controls {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.live-search-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.live-search-toggle input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #ff6b35;
+}
+
+.live-search-toggle input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.toggle-label {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 1em;
+}
+
+.countdown-display {
+  color: #ff6b35;
+  font-weight: 600;
+  font-size: 0.9em;
+  padding: 8px 16px;
+  background: rgba(255, 107, 53, 0.1);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  border-radius: 6px;
+  text-align: center;
+  min-width: 150px;
+}
+
 /* Dark theme adjustments */
 @media (prefers-color-scheme: dark) {
   .account-input-container {

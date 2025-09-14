@@ -72,6 +72,16 @@
   color: #fff;
 }
 
+.settings-close:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-close:disabled:hover {
+  background: none;
+  color: #888;
+}
+
 .settings-content {
   padding: 24px;
 }
@@ -115,6 +125,18 @@
   box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
 }
 
+.league-dropdown:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+  border-color: #333;
+}
+
+.league-dropdown:disabled:hover {
+  border-color: #333;
+  background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+}
+
 .league-dropdown option {
   background: #1a1a1a;
   color: #fff;
@@ -141,6 +163,18 @@
 .threshold-input:focus {
   border-color: #4a9eff;
   box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
+.threshold-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+  border-color: #333;
+}
+
+.threshold-input:disabled:hover {
+  border-color: #333;
+  background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
 }
 
 .tooltip {
