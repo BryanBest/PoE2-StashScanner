@@ -14,6 +14,7 @@ export interface StashedItem {
   estimatedValue?: number;
   currency?: string;
   icon?: string;
+  isQueuedForPricing?: boolean;
 }
 
 export interface PricingData {

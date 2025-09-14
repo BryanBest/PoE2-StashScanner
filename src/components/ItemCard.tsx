@@ -71,17 +71,24 @@ const ItemCard: React.FC<ItemCardProps> = ({ item }) => {
       <div className="item-pricing">
         <div className="estimated-value">
           <span className="value-label">Estimated Value:</span>
-          <span 
-            className="value-amount"
-            style={{ 
-              color: (item.estimatedValue && item.estimatedValue > 0) ? 'inherit' : '#ff4444' 
-            }}
-          >
-            {item.estimatedValue && item.estimatedValue > 0 && item.currency
-              ? `${item.estimatedValue} ${item.currency.charAt(0).toUpperCase() + item.currency.slice(1)}`
-              : 'Value Unknown'
-            }
-          </span>
+          {item.isQueuedForPricing ? (
+            <div className="pricing-spinner">
+              <div className="spinner"></div>
+              <span>Fetching price...</span>
+            </div>
+          ) : (
+            <span 
+              className="value-amount"
+              style={{ 
+                color: (item.estimatedValue && item.estimatedValue > 0) ? 'inherit' : '#ff4444' 
+              }}
+            >
+              {item.estimatedValue && item.estimatedValue > 0 && item.currency
+                ? `${item.estimatedValue} ${item.currency.charAt(0).toUpperCase() + item.currency.slice(1)}`
+                : 'Value Unknown'
+              }
+            </span>
+          )}
         </div>
       </div>
     </div>

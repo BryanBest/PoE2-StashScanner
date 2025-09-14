@@ -46,17 +46,33 @@ function App() {
     if (items.length === 0) return;
     
     setIsLoadingPrices(true);
+    
+    // Filter items that need pricing and mark them as queued
+    const itemsNeedingPricing = items.filter(item => 
+      item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
+    );
+    
+    // Set queued state for items that need pricing
+    setItems(prevItems => 
+      prevItems.map(item => 
+        itemsNeedingPricing.some(needingItem => needingItem.id === item.id)
+          ? { ...item, isQueuedForPricing: true }
+          : item
+      )
+    );
+    
     try {
       // Use incremental pricing to update UI as each item gets priced
       await fetchPricingDataIncremental(items, (itemId: string, pricing) => {
-        // Update the specific item with its pricing data
+        // Update the specific item with its pricing data and clear queued state
         setItems(prevItems => 
           prevItems.map(item => 
             item.id === itemId 
               ? {
                   ...item,
                   estimatedValue: pricing.estimatedValue,
-                  currency: pricing.currency
+                  currency: pricing.currency,
+                  isQueuedForPricing: false
                 }
               : item
           )
@@ -64,6 +80,11 @@ function App() {
       });
     } catch (error) {
       console.error("Error fetching pricing data:", error);
+      
+      // Clear queued state for all items on error
+      setItems(prevItems => 
+        prevItems.map(item => ({ ...item, isQueuedForPricing: false }))
+      );
     } finally {
       setIsLoadingPrices(false);
     }
