@@ -57,6 +57,23 @@ export class ModMappingService {
         return mapping.id;
       }
     }
+    
+    // Debug: Show potential exact matches that didn't match
+    console.log(`🔍 Debug: Looking for exact match for "${cleanInputText}"`);
+    const potentialMatches = this.modMappings.filter(mapping => 
+      mapping.type === modType && 
+      this.cleanModText(mapping.text).includes('critical') && 
+      this.cleanModText(mapping.text).includes('hit') &&
+      this.cleanModText(mapping.text).includes('chance')
+    );
+    
+    if (potentialMatches.length > 0) {
+      console.log(`🔍 Debug: Found ${potentialMatches.length} potential matches:`);
+      potentialMatches.forEach(match => {
+        const cleaned = this.cleanModText(match.text);
+        console.log(`  - "${match.text}" -> cleaned: "${cleaned}" -> ID: "${match.id}"`);
+      });
+    }
 
     // Find partial match if exact match fails
     for (const mapping of this.modMappings) {
@@ -76,14 +93,18 @@ export class ModMappingService {
    */
   private static cleanModText(text: string): string {
     return text
-      .replace(/\d+/g, '#') // Replace numbers with #
+      .replace(/\d+(?:\.\d+)?/g, '#') // Replace numbers (including decimals) with #
       .replace(/\[([^\]]*\|[^\]]*)\]/g, (_match, content) => {
         // Handle [term1|term2] format - use the last term after |
         const parts = content.split('|');
         return parts[parts.length - 1].trim();
       })
       .replace(/\[([^\]]*)\]/g, '$1') // Remove remaining brackets [term] -> term
-      .replace(/[+\-%()]/g, '') // Remove special characters
+      .replace(/[+\-%]/g, '') // Remove special characters but preserve parentheses
+      .replace(/\([^)]*\)/g, (match) => {
+        // Preserve (local) but remove other parenthetical content
+        return match.toLowerCase() === '(local)' ? '(local)' : '';
+      })
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim()
       .toLowerCase();
@@ -93,6 +114,19 @@ export class ModMappingService {
    * Check if two mod texts match (handles variations)
    */
   private static isModTextMatch(text1: string, text2: string): boolean {
+    // For more accurate matching, we need to be stricter about the structure
+    // Check if both texts have the same basic structure (flat vs percentage)
+    
+    // Check if both are flat bonuses (contain "to") or both are percentage increases (contain "increased")
+    const text1IsFlat = text1.includes(' to ');
+    const text2IsFlat = text2.includes(' to ');
+    const text1IsPercentage = text1.includes('increased');
+    const text2IsPercentage = text2.includes('increased');
+    
+    // If one is flat and the other is percentage, they shouldn't match
+    if (text1IsFlat && text2IsPercentage) return false;
+    if (text1IsPercentage && text2IsFlat) return false;
+    
     // Split into words and check if most words match
     const words1 = text1.split(' ').filter(w => w.length > 2);
     const words2 = text2.split(' ').filter(w => w.length > 2);
@@ -102,7 +136,8 @@ export class ModMappingService {
     const matchingWords = words1.filter(word => words2.includes(word));
     const matchRatio = matchingWords.length / Math.max(words1.length, words2.length);
     
-    return matchRatio >= 0.7; // 70% word match threshold
+    // Require higher match ratio for better accuracy
+    return matchRatio >= 0.8; // 80% word match threshold
   }
 
   /**

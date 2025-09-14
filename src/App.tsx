@@ -7,6 +7,9 @@ import { StashedItem } from "./types";
 import { fetchStashedItems, fetchPricingDataIncremental } from "./mockData";
 import { Poe2TradeApi } from "./api/poe2TradeApi";
 
+// Make Poe2TradeApi available globally for debugging
+(window as any).Poe2TradeApi = Poe2TradeApi;
+
 function App() {
   const [items, setItems] = useState<StashedItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);

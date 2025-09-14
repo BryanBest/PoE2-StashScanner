@@ -26,6 +26,63 @@ export class Poe2TradeApi {
   }
 
   /**
+   * Debug method to test mod mapping with custom data
+   */
+  static async debugModMapping(modText: string, itemType: string = "Jagged Spear"): Promise<void> {
+    console.log(`🧪 Debug: Testing mod mapping for "${modText}" on item type "${itemType}"`);
+    
+    const shouldBeLocal = this.shouldModBeLocal(modText, itemType);
+    const modTextWithLocal = shouldBeLocal ? `${modText} (local)` : modText;
+    
+    console.log(`Should be local: ${shouldBeLocal}`);
+    console.log(`Mod text with local: "${modTextWithLocal}"`);
+    
+    // Test the mod mapping
+    const { ModMappingService } = await import('../utils/modMapping');
+    await ModMappingService.initialize();
+    const modId = ModMappingService.findModId(modTextWithLocal, 'explicit');
+    
+    if (modId) {
+      console.log(`✅ Found mod ID: ${modId}`);
+    } else {
+      console.log(`❌ No mod ID found`);
+    }
+  }
+
+  /**
+   * Debug method to test item pricing with custom data
+   */
+  static async debugItemPricing(itemData: any): Promise<void> {
+    console.log(`🧪 Debug: Testing item pricing for:`, itemData);
+    
+    try {
+      const result = await this.getItemPrice(itemData);
+      console.log(`✅ Pricing result:`, result);
+    } catch (error) {
+      console.error(`❌ Pricing failed:`, error);
+    }
+  }
+
+  /**
+   * Debug method to test local mod detection
+   */
+  static debugLocalModDetection(modText: string, itemType: string): void {
+    console.log(`🧪 Debug: Testing local mod detection`);
+    console.log(`Mod text: "${modText}"`);
+    console.log(`Item type: "${itemType}"`);
+    
+    const shouldBeLocal = this.shouldModBeLocal(modText, itemType);
+    console.log(`Should be local: ${shouldBeLocal}`);
+    
+    if (shouldBeLocal) {
+      console.log(`✅ This mod should be mapped to the local version`);
+      console.log(`Note: Local version is likely a percentage increase, not a flat bonus`);
+    } else {
+      console.log(`ℹ️ This mod should be mapped to the global version`);
+    }
+  }
+
+  /**
    * Search for items by account name using Tauri's HTTP plugin
    */
   static async searchAccountItems(accountName: string): Promise<TradeSearchResponse> {
@@ -253,6 +310,75 @@ export class Poe2TradeApi {
   }
 
   /**
+   * Extract range values from a mod string (for "Adds X to Y Damage" type mods)
+   * Returns { min: number, max: number } or null if no range found
+   */
+  static extractModRange(modText: string): { min: number; max: number } | null {
+    // Look for "Adds X to Y" patterns
+    const rangePattern = /adds\s+(\d+(?:\.\d+)?)\s+to\s+(\d+(?:\.\d+)?)/i;
+    const match = modText.match(rangePattern);
+    
+    if (match) {
+      return {
+        min: parseFloat(match[1]),
+        max: parseFloat(match[2])
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * Determine if a mod should be local based on the item type and mod content
+   */
+  static shouldModBeLocal(modText: string, itemType: string): boolean {
+    const type = itemType.toLowerCase();
+    const mod = modText.toLowerCase();
+    
+    // Weapon-specific local mods
+    if (type.includes('weapon') || type.includes('sword') || type.includes('axe') || 
+        type.includes('mace') || type.includes('bow') || type.includes('crossbow') ||
+        type.includes('wand') || type.includes('staff') || type.includes('spear') ||
+        type.includes('dagger') || type.includes('claw') || type.includes('flail') ||
+        type.includes('sceptre') || type.includes('quarterstaff')) {
+      
+      // Accuracy is local on weapons (flat bonus)
+      if (mod.includes('accuracy') && mod.includes('rating') && mod.includes(' to ')) {
+        return true;
+      }
+      
+      // Attack speed is local on weapons (percentage increase)
+      if (mod.includes('attack') && mod.includes('speed') && mod.includes('increased')) {
+        return true;
+      }
+      
+    }
+    
+    // Armor-specific local mods
+    if (type.includes('armour') || type.includes('helmet') || type.includes('chest') ||
+        type.includes('gloves') || type.includes('boots') || type.includes('shield')) {
+      
+      // Armor/evasion/energy shield values are local on armor (flat bonuses)
+      if ((mod.includes('armour') || mod.includes('evasion') || mod.includes('energy shield')) && mod.includes(' to ')) {
+        return true;
+      }
+      
+      // Block chance is local on shields (percentage)
+      if (type.includes('shield') && mod.includes('block') && mod.includes('increased')) {
+        return true;
+      }
+    }
+    
+    // Accessory-specific local mods
+    if (type.includes('ring') || type.includes('amulet') || type.includes('belt')) {
+      // Most mods on accessories are global, but some specific ones might be local
+      // This would need to be refined based on PoE2's specific rules
+    }
+    
+    return false;
+  }
+
+  /**
    * Map item type to trade filter category
    */
   static getItemCategory(item: StashedItem): string | null {
@@ -306,14 +432,18 @@ export class Poe2TradeApi {
     
     // Add mod filters with 20% variance using actual mod IDs
     for (const stat of item.stats) {
-      const value = this.extractModValue(stat.name);
-      if (value !== null && value > 0) {
-        // Find the actual mod ID from modMappings.json
-        const modId = ModMappingService.findModId(stat.name, stat.type);
+      // Check if this is a range-based mod (like "Adds X to Y Damage")
+      const range = Poe2TradeApi.extractModRange(stat.name);
+      
+      if (range) {
+        // Handle range-based mods: min should be 20% below first number, max should be 20% above second number
+        const shouldBeLocal = this.shouldModBeLocal(stat.name, item.type);
+        const modTextWithLocal = shouldBeLocal ? `${stat.name} (local)` : stat.name;
+        const modId = ModMappingService.findModId(modTextWithLocal, stat.type);
         
         if (modId) {
-          const min = Math.max(0, Math.floor(value * 0.8));
-          const max = Math.ceil(value * 1.2);
+          const min = Math.max(0, Math.floor(range.min * 0.8));
+          const max = Math.ceil(range.max * 1.2);
           
           filters.push({
             id: modId,
@@ -321,22 +451,46 @@ export class Poe2TradeApi {
             disabled: false
           });
           
-          console.log(`🔍 Mapped mod "${stat.name}" to ID "${modId}" with range ${min}-${max}`);
+          console.log(`🔍 Mapped range mod "${stat.name}" to ID "${modId}" with range ${min}-${max} (original: ${range.min}-${range.max}) ${shouldBeLocal ? '(local)' : '(global)'}`);
         } else {
-          console.warn(`⚠️ Could not find mod ID for: "${stat.name}" (${stat.type})`);
+          console.warn(`⚠️ Could not find mod ID for range mod: "${stat.name}" (${stat.type})`);
+        }
+      } else {
+        // Handle single-value mods
+        const value = this.extractModValue(stat.name);
+        if (value !== null && value > 0) {
+          // Determine if this mod should be local based on item type and mod content
+          const shouldBeLocal = this.shouldModBeLocal(stat.name, item.type);
+          const modTextWithLocal = shouldBeLocal ? `${stat.name} (local)` : stat.name;
+          
+          // Find the actual mod ID from modMappings.json
+          const modId = ModMappingService.findModId(modTextWithLocal, stat.type);
+          
+          if (modId) {
+            const min = Math.max(0, Math.floor(value * 0.8));
+            const max = Math.ceil(value * 1.2);
+            
+            filters.push({
+              id: modId,
+              value: { min, max },
+              disabled: false
+            });
+            
+            console.log(`🔍 Mapped mod "${stat.name}" to ID "${modId}" with range ${min}-${max} ${shouldBeLocal ? '(local)' : '(global)'}`);
+          } else {
+            console.warn(`⚠️ Could not find mod ID for: "${stat.name}" (${stat.type})`);
+          }
         }
       }
     }
 
-    // Limit to 6 filters to avoid overly complex queries
-    const limitedFilters = filters.slice(0, 6);
-
+    // Use all available filters for better pricing accuracy
     const searchPayload = {
       query: {
         status: { option: "securable" },
         stats: [
           { type: "and", filters: [] },
-          { filters: limitedFilters, type: "and" }
+          { filters: filters, type: "and" }
         ],
         filters: category ? {
           type_filters: {
@@ -349,7 +503,17 @@ export class Poe2TradeApi {
       sort: { price: "asc" }
     };
 
-    console.log(`🔍 Searching for similar items with ${limitedFilters.length} mod filters and category: ${category || 'none'}`);
+    console.log(`🔍 Searching for similar items with ${filters.length} mod filters and category: ${category || 'none'}`);
+    if (filters.length > 0) {
+      console.log('🔎 Mod filters being used:');
+      filters.forEach(f => {
+        if (f.value && typeof f.value === 'object' && f.value.min !== undefined && f.value.max !== undefined) {
+          console.log(`  - id: ${f.id}, min: ${f.value.min}, max: ${f.value.max}, disabled: ${f.disabled}`);
+        } else {
+          console.log(`  - id: ${f.id}, value: ${JSON.stringify(f.value)}, disabled: ${f.disabled}`);
+        }
+      });
+    }
 
     const response = await fetch(`${POE2_TRADE_API_BASE}/search/poe2/${LEAGUE}`, {
       method: 'POST',
