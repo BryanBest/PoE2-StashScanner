@@ -634,10 +634,20 @@ export class Poe2TradeApi {
     items: StashedItem[], 
     onItemPriced: (itemId: string, pricing: PricingData) => void
   ): Promise<void> {
-    console.log(`🏷️ Starting to price ${items.length} items with incremental updates...`);
+    // Filter out items that already have pricing data
+    const itemsToPrice = items.filter(item => 
+      item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
+    );
     
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    const alreadyPricedCount = items.length - itemsToPrice.length;
+    console.log(`🏷️ Starting to price ${itemsToPrice.length} items with incremental updates...`);
+    
+    if (alreadyPricedCount > 0) {
+      console.log(`⏭️ Skipping ${alreadyPricedCount} items that already have pricing data`);
+    }
+    
+    for (let i = 0; i < itemsToPrice.length; i++) {
+      const item = itemsToPrice[i];
       
       try {
         const priceResult = await this.getItemPrice(item);
@@ -664,8 +674,8 @@ export class Poe2TradeApi {
         onItemPriced(item.id, pricing);
         
         // Wait 3 seconds between requests (except for the last item)
-        if (i < items.length - 1) {
-          console.log(`⏱️ Waiting 3 seconds before next request... (${i + 1}/${items.length})`);
+        if (i < itemsToPrice.length - 1) {
+          console.log(`⏱️ Waiting 3 seconds before next request... (${i + 1}/${itemsToPrice.length})`);
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
         
@@ -684,6 +694,6 @@ export class Poe2TradeApi {
       }
     }
     
-    console.log(`✅ Completed pricing ${items.length} items`);
+    console.log(`✅ Completed pricing ${itemsToPrice.length} items (${alreadyPricedCount} already had pricing data)`);
   }
 }

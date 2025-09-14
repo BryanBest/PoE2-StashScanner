@@ -58,9 +58,18 @@ export const fetchPricingDataIncremental = async (
   } catch (error) {
     console.error('Error fetching incremental pricing from PoE2 API:', error);
     
-    // Fallback to basic mock data if API fails
-    console.log('Falling back to mock pricing data');
-    items.forEach((item) => {
+    // Fallback to basic mock data if API fails - only for items without pricing data
+    console.log('Falling back to mock pricing data for items without pricing');
+    const itemsToPrice = items.filter(item => 
+      item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
+    );
+    
+    const alreadyPricedCount = items.length - itemsToPrice.length;
+    if (alreadyPricedCount > 0) {
+      console.log(`⏭️ Skipping ${alreadyPricedCount} items that already have pricing data in fallback`);
+    }
+    
+    itemsToPrice.forEach((item) => {
       const fallbackPricing: PricingData = {
         itemId: item.id,
         estimatedValue: Math.random() * 10 + 1, // Lower random values as fallback
