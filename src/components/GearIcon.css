@@ -1,0 +1,54 @@
+.gear-icon {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  border: 1px solid #444;
+  border-radius: 50%;
+  width: 55px;
+  height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ccc;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+.gear-icon:hover {
+  background: linear-gradient(135deg, #333 0%, #222 100%);
+  border-color: #666;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.gear-icon:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.gear-icon svg {
+  transition: transform 0.2s ease;
+}
+
+.gear-icon:hover svg {
+  transform: rotate(90deg);
+}
+
+/* Dark theme adjustments */
+@media (prefers-color-scheme: dark) {
+  .gear-icon {
+    background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+    border-color: #333;
+    color: #aaa;
+  }
+  
+  .gear-icon:hover {
+    background: linear-gradient(135deg, #222 0%, #111 100%);
+    border-color: #555;
+    color: #fff;
+  }
+}

@@ -11,9 +11,18 @@ import { fetch } from '@tauri-apps/plugin-http';
 import { ModMappingService } from '../utils/modMapping';
 
 const POE2_TRADE_API_BASE = 'https://www.pathofexile.com/api/trade2';
-const LEAGUE = 'Rise%20of%20the%20Abyssal';
 
 export class Poe2TradeApi {
+  private static currentLeague: string = 'Rise%20of%20the%20Abyssal';
+
+  static setLeague(league: string): void {
+    this.currentLeague = league;
+    console.log('Poe2TradeApi league set to:', league);
+  }
+
+  static getLeague(): string {
+    return this.currentLeague;
+  }
   // Cache for item details to avoid re-fetching
   private static itemDetailsCache = new Map<string, StashedItem>();
 
@@ -103,7 +112,7 @@ export class Poe2TradeApi {
     };
 
     // Use Tauri's HTTP API to bypass CORS
-    const response = await fetch(`${POE2_TRADE_API_BASE}/search/poe2/${LEAGUE}`, {
+    const response = await fetch(`${POE2_TRADE_API_BASE}/search/poe2/${this.currentLeague}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -515,7 +524,7 @@ export class Poe2TradeApi {
       });
     }
 
-    const response = await fetch(`${POE2_TRADE_API_BASE}/search/poe2/${LEAGUE}`, {
+    const response = await fetch(`${POE2_TRADE_API_BASE}/search/poe2/${this.currentLeague}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

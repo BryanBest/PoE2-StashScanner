@@ -2,9 +2,96 @@ import { StashedItem, PricingData } from '../types';
 import { fetch } from '@tauri-apps/plugin-http';
 
 const POE2HELPER_BASE = 'https://poe2helper.com/api';
-const LEAGUE = 'Rise%20of%20the%20Abyssal';
+const POE2SCOUT_BASE = 'https://poe2scout.com/api';
 
 export class Poe2HelperApi {
+  private static currentLeague: string = 'Rise%20of%20the%20Abyssal';
+
+  static setLeague(league: string): void {
+    this.currentLeague = league;
+    console.log('Poe2HelperApi league set to:', league);
+  }
+
+  static getLeague(): string {
+    return this.currentLeague;
+  }
+  private static leaguesCache: string[] | null = null;
+  private static leaguesFetchPromise: Promise<string[]> | null = null;
+
+  /**
+   * Fetch available leagues from poe2scout.com
+   */
+  static async fetchLeagues(): Promise<string[]> {
+    // Return cached result if available
+    if (this.leaguesCache) {
+      console.log('Returning cached leagues');
+      return this.leaguesCache;
+    }
+
+    // Return existing promise if already fetching
+    if (this.leaguesFetchPromise) {
+      console.log('Leagues already being fetched, waiting for result...');
+      return this.leaguesFetchPromise;
+    }
+
+    // Create and store the fetch promise
+    this.leaguesFetchPromise = this._doFetchLeagues();
+    
+    try {
+      const result = await this.leaguesFetchPromise;
+      return result;
+    } finally {
+      // Clear the promise after completion
+      this.leaguesFetchPromise = null;
+    }
+  }
+
+  /**
+   * Internal method to actually fetch leagues from the API
+   */
+  private static async _doFetchLeagues(): Promise<string[]> {
+    try {
+      console.log('Fetching leagues from poe2scout.com...');
+      
+      const response = await fetch(`${POE2SCOUT_BASE}/leagues`, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'POE2-Stash-Pricing-Tool/1.0',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch leagues: ${response.status} ${response.statusText}`);
+      }
+
+      const leaguesData = await response.json();
+      
+      // Extract league names from the response
+      const leagueNames = leaguesData.map((league: any) => league.value);
+      
+      // Cache the result
+      this.leaguesCache = leagueNames;
+      
+      console.log(`Successfully fetched ${leagueNames.length} leagues:`, leagueNames);
+      return leagueNames;
+      
+    } catch (error) {
+      console.error('Error fetching leagues:', error);
+      // Return empty array on error to prevent app from breaking
+      return [];
+    }
+  }
+
+  /**
+   * Clear the leagues cache (useful for testing or refreshing data)
+   */
+  static clearLeaguesCache(): void {
+    this.leaguesCache = null;
+    this.leaguesFetchPromise = null;
+    console.log('Leagues cache cleared');
+  }
+
   /**
    * Convert a StashedItem to item description format for poe2helper
    */
@@ -65,7 +152,7 @@ export class Poe2HelperApi {
   static async searchPricing(parsedData: any): Promise<any> {
     // Create the search payload with 20% variance for min/max values
     const searchPayload = {
-      league: LEAGUE,
+      league: this.currentLeague,
       body: JSON.stringify({
         query: {
           status: { option: "securable" },

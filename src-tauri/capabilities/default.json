@@ -15,7 +15,10 @@
         },
         {
           "url": "https://poe2helper.com/api/*"
-        }
+        },
+        {
+          "url": "https://poe2scout.com/api/*"
+        }        
       ]
     }
   ]
