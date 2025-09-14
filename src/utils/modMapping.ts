@@ -76,13 +76,13 @@ export class ModMappingService {
     }
 
     // Find partial match if exact match fails
-    for (const mapping of this.modMappings) {
-      const cleanMappingText = this.cleanModText(mapping.text);
-      if (mapping.type === modType && this.isModTextMatch(cleanInputText, cleanMappingText)) {
-        console.log(`✅ Partial match found: "${mapping.text}" -> ID: "${mapping.id}"`);
-        return mapping.id;
-      }
-    }
+    // for (const mapping of this.modMappings) {
+    //   const cleanMappingText = this.cleanModText(mapping.text);
+    //   if (mapping.type === modType && this.isModTextMatch(cleanInputText, cleanMappingText)) {
+    //     console.log(`✅ Partial match found: "${mapping.text}" -> ID: "${mapping.id}"`);
+    //     return mapping.id;
+    //   }
+    // }
 
     console.log(`❌ No match found for: "${modText}"`);
     return null;
@@ -113,7 +113,7 @@ export class ModMappingService {
   /**
    * Check if two mod texts match (handles variations)
    */
-  private static isModTextMatch(text1: string, text2: string): boolean {
+  /* private static isModTextMatch(text1: string, text2: string): boolean {
     // For more accurate matching, we need to be stricter about the structure
     // Check if both texts have the same basic structure (flat vs percentage)
     
@@ -138,7 +138,7 @@ export class ModMappingService {
     
     // Require higher match ratio for better accuracy
     return matchRatio >= 0.8; // 80% word match threshold
-  }
+  } */
 
   /**
    * Get all mod mappings for debugging
