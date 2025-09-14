@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import AccountInput from "./components/AccountInput";
-import PriceCheckButton from "./components/PriceCheckButton";
 import ItemCard from "./components/ItemCard";
 import Settings from "./components/Settings";
 import GearIcon from "./components/GearIcon";
@@ -32,7 +31,6 @@ let globalConvertToExalts: ((value: number, currency: string) => { value: number
 function App() {
   const [items, setItems] = useState<StashedItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [isLoadingPrices, setIsLoadingPrices] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [leagues, setLeagues] = useState<string[]>([]);
   const leaguesFetchedRef = useRef(false);
@@ -161,24 +159,31 @@ function App() {
       const fetchedItems = await fetchStashedItems(account, items);
       setItems(fetchedItems);
       
+      // Hide the loading spinner once items are loaded and displayed
+      setIsLoadingItems(false);
+      
       if (fetchedItems.length === 0) {
         console.log(`No items found for account: ${account}`);
+      } else {
+        // Automatically trigger pricing after items are loaded (this runs in background)
+        console.log(`Loaded ${fetchedItems.length} items, starting automatic price check...`);
+        // Don't await this - let it run in background while items are already displayed
+        handlePriceCheck(fetchedItems).catch(error => {
+          console.error("Error during automatic price check:", error);
+        });
       }
     } catch (error) {
       console.error("Error fetching items:", error);
-      // You could add a toast notification or error state here
-    } finally {
       setIsLoadingItems(false);
+      // You could add a toast notification or error state here
     }
   };
 
-  const handlePriceCheck = async () => {
-    if (items.length === 0) return;
-    
-    setIsLoadingPrices(true);
+  const handlePriceCheck = async (itemsToPrice: StashedItem[] = items) => {
+    if (itemsToPrice.length === 0) return;
     
     // Filter items that need pricing and mark them as queued
-    const itemsNeedingPricing = items.filter(item => 
+    const itemsNeedingPricing = itemsToPrice.filter(item => 
       item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
     );
     
@@ -193,7 +198,7 @@ function App() {
     
     try {
       // Use incremental pricing to update UI as each item gets priced
-      await fetchPricingDataIncremental(items, (itemId: string, pricing) => {
+      await fetchPricingDataIncremental(itemsToPrice, (itemId: string, pricing) => {
         // Update the specific item with its pricing data and clear queued state
         setItems(prevItems => 
           prevItems.map(item => 
@@ -215,8 +220,6 @@ function App() {
       setItems(prevItems => 
         prevItems.map(item => ({ ...item, isQueuedForPricing: false }))
       );
-    } finally {
-      setIsLoadingPrices(false);
     }
   };
 
@@ -263,11 +266,6 @@ function App() {
           isLoading={isLoadingItems}
         />
       
-      <PriceCheckButton
-        onPriceCheck={handlePriceCheck}
-        isLoading={isLoadingPrices}
-        hasItems={items.length > 0}
-      />
 
       {items.length > 0 && (
         <div className="items-container">
