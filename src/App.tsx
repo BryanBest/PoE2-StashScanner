@@ -14,6 +14,21 @@ import { Poe2HelperApi } from "./api/poe2HelperApi";
 (window as any).Poe2TradeApi = Poe2TradeApi;
 (window as any).Poe2HelperApi = Poe2HelperApi;
 
+// Global currency values accessor (will be set inside component)
+let globalCurrencyValues: Record<string, number> = {};
+(window as any).getCurrencyValues = () => {
+  return globalCurrencyValues;
+};
+
+// Global currency conversion function (will be set inside component)
+let globalConvertToExalts: ((value: number, currency: string) => { value: number; displayText: string }) | null = null;
+(window as any).convertToExalts = (value: number, currency: string) => {
+  if (globalConvertToExalts) {
+    return globalConvertToExalts(value, currency);
+  }
+  return { value, displayText: `${value} ${currency}` };
+};
+
 function App() {
   const [items, setItems] = useState<StashedItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
@@ -24,6 +39,65 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedLeague, setSelectedLeague] = useState<string>("Rise of the Abyssal");
   const [currentLeague, setCurrentLeague] = useState<string>("Rise%20of%20the%20Abyssal");
+  const [currencyValues, setCurrencyValues] = useState<Record<string, number>>({});
+
+  // Fetch currency values using Poe2HelperApi
+  const fetchCurrencyValues = async (league: string) => {
+    try {
+      const currencyDict = await Poe2HelperApi.fetchCurrencyValues(league);
+      setCurrencyValues(currencyDict);
+      globalCurrencyValues = currencyDict; // Update global accessor
+      console.log('Currency values state updated:', Object.keys(currencyValues).length > 0 ? `${Object.keys(currencyValues).length} currencies` : 'Empty');
+    } catch (error) {
+      console.error('Error fetching currency values:', error);
+      // Set empty object on error to prevent app from breaking
+      setCurrencyValues({});
+      globalCurrencyValues = {}; // Update global accessor
+    }
+  };
+
+  // Convert any currency value to exalts
+  const convertToExalts = (value: number, currency: string): { value: number; displayText: string } => {
+    // If already exalts, return as is
+    if (currency.toLowerCase() === 'exalted') {
+      return { 
+        value: value, 
+        displayText: `${value} Exalted${value !== 1 ? 's' : ''}` 
+      };
+    }
+
+    // Get the conversion rate from currency values
+    const currencyRate = currencyValues[currency.toLowerCase()] || currencyValues[currency];
+    
+    if (!currencyRate || currencyRate === 0) {
+      // If we don't have conversion data, show original value
+      return { 
+        value: value, 
+        displayText: `${value} ${currency.charAt(0).toUpperCase() + currency.slice(1)}` 
+      };
+    }
+
+    // Convert to exalts
+    const exaltValue = value / currencyRate;
+    
+    // Format the display text
+    if (exaltValue >= 1) {
+      // Show as whole exalts if >= 1
+      return { 
+        value: exaltValue, 
+        displayText: `${Math.round(exaltValue)} Exalted${Math.round(exaltValue) !== 1 ? 's' : ''}` 
+      };
+    } else {
+      // Show as decimal exalts if < 1
+      return { 
+        value: exaltValue, 
+        displayText: `${exaltValue.toFixed(2)} Exalted${exaltValue !== 1 ? 's' : ''}` 
+      };
+    }
+  };
+
+  // Set global conversion function for debugging
+  globalConvertToExalts = convertToExalts;
 
   // Fetch leagues when the app first loads (only once)
   useEffect(() => {
@@ -53,6 +127,12 @@ function App() {
           // Update the league in both API classes
           Poe2TradeApi.setLeague(formattedLeague);
           Poe2HelperApi.setLeague(formattedLeague);
+          
+          // Fetch currency values for the default league
+          await fetchCurrencyValues(formattedLeague);
+        } else {
+          // Fetch currency values for the current league
+          await fetchCurrencyValues(currentLeague);
         }
         
         // Leagues are now available for future use (league selection, etc.)
@@ -148,7 +228,7 @@ function App() {
     setIsSettingsOpen(false);
   };
 
-  const handleLeagueChange = (league: string) => {
+  const handleLeagueChange = async (league: string) => {
     setSelectedLeague(league);
     // Format the league name for API calls (URL encode spaces as %20)
     const formattedLeague = league.replace(/\s+/g, '%20');
@@ -157,6 +237,9 @@ function App() {
     // Update the league in both API classes
     Poe2TradeApi.setLeague(formattedLeague);
     Poe2HelperApi.setLeague(formattedLeague);
+    
+    // Fetch currency values for the new league
+    await fetchCurrencyValues(formattedLeague);
     
     console.log('League changed to:', league);
     console.log('Formatted league for API:', formattedLeague);
@@ -191,7 +274,7 @@ function App() {
           <h3>Stashed Items for {accountName}</h3>
           <div className="items-grid">
             {items.map((item) => (
-              <ItemCard key={item.id} item={item} />
+              <ItemCard key={item.id} item={item} convertToExalts={convertToExalts} />
             ))}
           </div>
         </div>

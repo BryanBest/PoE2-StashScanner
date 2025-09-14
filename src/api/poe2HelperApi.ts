@@ -93,6 +93,51 @@ export class Poe2HelperApi {
   }
 
   /**
+   * Fetch currency values from poe2scout.com
+   */
+  static async fetchCurrencyValues(league?: string): Promise<Record<string, number>> {
+    try {
+      const leagueToUse = league || this.currentLeague;
+      console.log(`Fetching currency values for league: ${leagueToUse}`);
+      
+      const response = await fetch(
+        `${POE2SCOUT_BASE}/items/currency/currency?referenceCurrency=exalted&page=1&perPage=250&league=${leagueToUse}`,
+        {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'POE2-Stash-Pricing-Tool/1.0',
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch currency values: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Extract currency values and round to nearest integer
+      const currencyDict: Record<string, number> = {};
+      if (data.items && Array.isArray(data.items)) {
+        data.items.forEach((item: any) => {
+          if (item.apiId && item.currentPrice !== undefined) {
+            currencyDict[item.apiId] = Math.round(item.currentPrice);
+          }
+        });
+      }
+      
+      console.log(`Successfully fetched ${Object.keys(currencyDict).length} currency values:`, currencyDict);
+      return currencyDict;
+      
+    } catch (error) {
+      console.error('Error fetching currency values:', error);
+      // Return empty object on error to prevent app from breaking
+      return {};
+    }
+  }
+
+  /**
    * Convert a StashedItem to item description format for poe2helper
    */
   static convertItemToDescription(item: StashedItem): string {

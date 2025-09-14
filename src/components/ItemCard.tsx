@@ -4,9 +4,10 @@ import './ItemCard.css';
 
 interface ItemCardProps {
   item: StashedItem;
+  convertToExalts: (value: number, currency: string) => { value: number; displayText: string };
 }
 
-const ItemCard: React.FC<ItemCardProps> = ({ item }) => {
+const ItemCard: React.FC<ItemCardProps> = ({ item, convertToExalts }) => {
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
       case 'unique': return '#af6025';
@@ -84,7 +85,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item }) => {
               }}
             >
               {item.estimatedValue && item.estimatedValue > 0 && item.currency
-                ? `${item.estimatedValue} ${item.currency.charAt(0).toUpperCase() + item.currency.slice(1)}`
+                ? convertToExalts(item.estimatedValue, item.currency).displayText
                 : 'Value Unknown'
               }
             </span>
