@@ -188,31 +188,47 @@ export class Poe2TradeApi {
 
   /**
    * Fetch detailed item data using item IDs with Tauri's HTTP plugin
+   * Handles the 10-item limit by splitting requests into chunks
    */
   static async fetchItemDetails(itemIds: string[]): Promise<TradeFetchItem[]> {
     if (itemIds.length === 0) {
       return [];
     }
 
-    // Join item IDs with commas for the API
-    const idsParam = itemIds.join(',');
-    
-    // Use Tauri's HTTP API to bypass CORS
-    const response = await fetch(`${POE2_TRADE_API_BASE}/fetch/${idsParam}`, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'POE2-Stash-Pricing-Tool/1.0'
-      }
-    });
+    const MAX_ITEMS_PER_REQUEST = 10;
+    const allResults: TradeFetchItem[] = [];
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch item details: ${response.status} ${response.statusText}`);
+    // Split itemIds into chunks of MAX_ITEMS_PER_REQUEST
+    for (let i = 0; i < itemIds.length; i += MAX_ITEMS_PER_REQUEST) {
+      const chunk = itemIds.slice(i, i + MAX_ITEMS_PER_REQUEST);
+      const idsParam = chunk.join(',');
+      
+      console.log(`Fetching item details for chunk ${Math.floor(i / MAX_ITEMS_PER_REQUEST) + 1}/${Math.ceil(itemIds.length / MAX_ITEMS_PER_REQUEST)} (${chunk.length} items)`);
+      
+      // Use Tauri's HTTP API to bypass CORS
+      const response = await fetch(`${POE2_TRADE_API_BASE}/fetch/${idsParam}`, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'POE2-Stash-Pricing-Tool/1.0'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch item details for chunk: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const chunkResults = data.result || [];
+      allResults.push(...chunkResults);
+      
+      // Add a small delay between requests to be respectful to the API
+      if (i + MAX_ITEMS_PER_REQUEST < itemIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
 
-    const data = await response.json();
-    
-    // Extract the result array from the response
-    return data.result || [];
+    console.log(`Successfully fetched details for ${allResults.length} items (${itemIds.length} requested)`);
+    return allResults;
   }
 
   /**
