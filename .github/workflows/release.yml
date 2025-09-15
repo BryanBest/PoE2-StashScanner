@@ -32,8 +32,7 @@ jobs:
       - name: install frontend dependencies
         # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
         run: 
-          cd poe-stash
-          npm install
+          cd poe-stash & npm install
 
       - uses: tauri-apps/tauri-action@v0
         env:
