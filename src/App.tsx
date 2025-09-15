@@ -36,7 +36,6 @@ function App() {
   const leaguesFetchedRef = useRef(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedLeague, setSelectedLeague] = useState<string>("Rise of the Abyssal");
-  const [currentLeague, setCurrentLeague] = useState<string>("Rise%20of%20the%20Abyssal");
   const [currencyValues, setCurrencyValues] = useState<Record<string, number>>({});
   const [threshold, setThreshold] = useState<number>(10);
   const [isLiveSearchEnabled, setIsLiveSearchEnabled] = useState<boolean>(false);
@@ -168,7 +167,6 @@ function App() {
           if (fetchedLeagues.includes(selectedLeague)) {
             // Use the selected league (it's valid)
             const formattedLeague = selectedLeague.replace(/\s+/g, '%20');
-            setCurrentLeague(formattedLeague);
             
             // Update the league in both API classes
             Poe2TradeApi.setLeague(formattedLeague);
@@ -180,7 +178,6 @@ function App() {
             // Selected league not found, use the first available league
             setSelectedLeague(fetchedLeagues[0]);
             const formattedLeague = fetchedLeagues[0].replace(/\s+/g, '%20');
-            setCurrentLeague(formattedLeague);
             
             // Update the league in both API classes
             Poe2TradeApi.setLeague(formattedLeague);
@@ -306,7 +303,6 @@ function App() {
     setSelectedLeague(league);
     // Format the league name for API calls (URL encode spaces as %20)
     const formattedLeague = league.replace(/\s+/g, '%20');
-    setCurrentLeague(formattedLeague);
     
     // Update the league in both API classes
     Poe2TradeApi.setLeague(formattedLeague);
