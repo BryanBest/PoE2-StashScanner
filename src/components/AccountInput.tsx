@@ -8,6 +8,7 @@ interface AccountInputProps {
   onLiveSearchToggle: (accountName: string) => void;
   countdownSeconds: number;
   isDisabled: boolean;
+  isPricingInProgress: boolean;
 }
 
 const AccountInput: React.FC<AccountInputProps> = ({ 
@@ -16,7 +17,8 @@ const AccountInput: React.FC<AccountInputProps> = ({
   isLiveSearchEnabled, 
   onLiveSearchToggle, 
   countdownSeconds, 
-  isDisabled 
+  isDisabled,
+  isPricingInProgress
 }) => {
   const [accountName, setAccountName] = useState('');
 
@@ -45,7 +47,7 @@ const AccountInput: React.FC<AccountInputProps> = ({
             className="fetch-button"
             disabled={isLoading || !accountName.trim() || isDisabled}
           >
-            {isLoading ? 'Loading...' : 'Scan'}
+            {isLoading ? 'Loading...' : isPricingInProgress ? 'Pricing...' : 'Scan'}
           </button>
         </div>
         <div className="live-search-controls">
@@ -62,10 +64,15 @@ const AccountInput: React.FC<AccountInputProps> = ({
                   onLiveSearchToggle(accountName);
                 }
               }}
-              disabled={!accountName.trim()}
+              disabled={!accountName.trim() || isDisabled}
             />
             <span className="toggle-label">Live Scan</span>
           </label>
+          {isPricingInProgress && (
+            <div className="pricing-indicator">
+              🔍 Pricing items...
+            </div>
+          )}
           {isLiveSearchEnabled && (
             <div className="countdown-display">
               Next fetch in: {countdownSeconds}s

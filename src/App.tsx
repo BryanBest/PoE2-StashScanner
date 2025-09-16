@@ -43,6 +43,7 @@ function App() {
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isErrorPopupOpen, setIsErrorPopupOpen] = useState<boolean>(false);
+  const [isPricingInProgress, setIsPricingInProgress] = useState<boolean>(false);
   const liveSearchIntervalRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const itemsRef = useRef<StashedItem[]>([]);
@@ -125,6 +126,8 @@ function App() {
     stopLiveSearch();
     // Stop loading
     setIsLoadingItems(false);
+    // Stop pricing
+    setIsPricingInProgress(false);
     // Clear any queued pricing states
     setItems(prevItems => 
       prevItems.map(item => ({ ...item, isQueuedForPricing: false }))
@@ -282,6 +285,9 @@ function App() {
   const handlePriceCheck = async (itemsToPrice: StashedItem[] = items) => {
     if (itemsToPrice.length === 0) return;
 
+    // Set pricing in progress
+    setIsPricingInProgress(true);
+
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Set queued state for items that need pricing
@@ -320,6 +326,9 @@ function App() {
       });
     } catch (error) {
       handleApiError(error, "Fetching pricing data");
+    } finally {
+      // Pricing completed (success or error)
+      setIsPricingInProgress(false);
     }
   };
 
@@ -481,7 +490,8 @@ function App() {
           isLiveSearchEnabled={isLiveSearchEnabled}
           onLiveSearchToggle={handleLiveSearchToggle}
           countdownSeconds={countdownSeconds}
-          isDisabled={isLiveSearchEnabled}
+          isDisabled={isLiveSearchEnabled || isPricingInProgress || isLoadingItems}
+          isPricingInProgress={isPricingInProgress}
         />
       
 

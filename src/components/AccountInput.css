@@ -135,6 +135,24 @@
   min-width: 150px;
 }
 
+.pricing-indicator {
+  color: #24c8db;
+  font-weight: 600;
+  font-size: 0.9em;
+  padding: 8px 16px;
+  background: rgba(36, 200, 219, 0.1);
+  border: 1px solid rgba(36, 200, 219, 0.3);
+  border-radius: 6px;
+  text-align: center;
+  min-width: 150px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 /* Dark theme adjustments */
 @media (prefers-color-scheme: dark) {
   .account-input-container {
