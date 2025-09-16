@@ -13,6 +13,7 @@
   font-size: 1.8em;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
   background: linear-gradient(45deg, #ff6b35, #f7931e);
+  font-family: 'Fontin-Bold';
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -38,6 +39,7 @@
   background: #1a1a1a;
   color: #ffffff;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  font-family: 'Fontin-Italic';
 }
 
 .account-input:focus {
@@ -64,6 +66,7 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+  font-family: 'Fontin-Regular';
 }
 
 .fetch-button:hover:not(:disabled) {
@@ -91,6 +94,7 @@
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  font-family: 'Fontin-Regular';
 }
 
 .live-search-toggle {

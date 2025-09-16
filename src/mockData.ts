@@ -1,5 +1,5 @@
 import { StashedItem, PricingData } from './types';
-import { Poe2TradeApi } from './api/poe2TradeApi';
+import { Poe2TradeApi, ApiError } from './api/poe2TradeApi';
 
 export const mockPricingData: PricingData[] = [
   { itemId: '1', estimatedValue: 15.5, currency: 'chaos', confidence: 0.85 },
@@ -18,7 +18,11 @@ export const fetchStashedItems = async (accountName: string, existingItems: Stas
     return items;
   } catch (error) {
     console.error('Error fetching items from PoE2 API:', error);
-    // Fallback to empty array if API fails
+    // Re-throw ApiError to preserve error details
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    // Fallback to empty array for other errors
     return [];
   }
 };
@@ -32,6 +36,11 @@ export const fetchPricingData = async (items: StashedItem[]): Promise<PricingDat
     return pricingData;
   } catch (error) {
     console.error('Error fetching pricing from PoE2 API:', error);
+    
+    // Re-throw ApiError to preserve error details
+    if (error instanceof ApiError) {
+      throw error;
+    }
     
     // Fallback to basic mock data if API fails
     console.log('Falling back to mock pricing data');
@@ -57,6 +66,11 @@ export const fetchPricingDataIncremental = async (
     console.log(`Successfully completed incremental pricing for ${items.length} items`);
   } catch (error) {
     console.error('Error fetching incremental pricing from PoE2 API:', error);
+    
+    // Re-throw ApiError to preserve error details
+    if (error instanceof ApiError) {
+      throw error;
+    }
     
     // Fallback to basic mock data if API fails - only for items without pricing data
     console.log('Falling back to mock pricing data for items without pricing');

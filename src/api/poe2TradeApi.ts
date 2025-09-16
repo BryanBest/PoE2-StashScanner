@@ -10,6 +10,22 @@ import {
 import { fetch } from '@tauri-apps/plugin-http';
 import { ModMappingService } from '../utils/modMapping';
 
+// Custom error class for API errors with response details
+export class ApiError extends Error {
+  public status: number;
+  public statusText: string;
+  public responseMessage: string;
+
+  constructor(status: number, statusText: string, responseMessage: string, originalMessage?: string) {
+    const message = responseMessage || originalMessage || `API Error: ${status} ${statusText}`;
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.statusText = statusText;
+    this.responseMessage = responseMessage;
+  }
+}
+
 const POE2_TRADE_API_BASE = 'https://www.pathofexile.com/api/trade2';
 
 export class Poe2TradeApi {
@@ -18,6 +34,41 @@ export class Poe2TradeApi {
   static setLeague(league: string): void {
     this.currentLeague = league;
     console.log('Poe2TradeApi league set to:', league);
+  }
+
+  /**
+   * Helper function to extract error message from API response
+   */
+  private static async extractErrorMessage(response: Response): Promise<string> {
+    try {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        // Try common error message fields
+        return errorData.message || errorData.error || errorData.detail || errorData.description || 
+               `HTTP ${response.status}: ${response.statusText}`;
+      } else {
+        // Try to get text response
+        const errorText = await response.text();
+        return errorText || `HTTP ${response.status}: ${response.statusText}`;
+      }
+    } catch (parseError) {
+      // If we can't parse the response, return a generic message
+      return `HTTP ${response.status}: ${response.statusText}`;
+    }
+  }
+
+  /**
+   * Helper function to handle API errors consistently
+   */
+  private static async handleApiError(response: Response, context: string): Promise<never> {
+    const errorMessage = await this.extractErrorMessage(response);
+    console.error(`API Error in ${context}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      message: errorMessage
+    });
+    throw new ApiError(response.status, response.statusText, errorMessage, `${context} failed`);
   }
 
   static getLeague(): string {
@@ -180,7 +231,7 @@ export class Poe2TradeApi {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to search items: ${response.status} ${response.statusText}`);
+      await this.handleApiError(response, 'Search items');
     }
 
     return await response.json();
@@ -214,7 +265,7 @@ export class Poe2TradeApi {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch item details for chunk: ${response.status} ${response.statusText}`);
+        await this.handleApiError(response, 'Fetch item details');
       }
 
       const data = await response.json();
@@ -223,7 +274,7 @@ export class Poe2TradeApi {
       
       // Add a small delay between requests to be respectful to the API
       if (i + MAX_ITEMS_PER_REQUEST < itemIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 10000));
       }
     }
 
@@ -344,9 +395,9 @@ export class Poe2TradeApi {
       
       // Step 5: Fetch new items if any
       if (itemsToFetch.length > 0) {
-        // Wait 1 second to avoid rate limits
-        console.log('Waiting 1 second to avoid rate limits...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait 10 second to avoid rate limits
+        console.log('Waiting 10 second to avoid rate limits...');
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
         // Fetch detailed item data for new items
         console.log(`Fetching details for ${itemsToFetch.length} new items...`);
@@ -608,7 +659,7 @@ export class Poe2TradeApi {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to search similar items: ${response.status} ${response.statusText}`);
+      await this.handleApiError(response, 'Search similar items');
     }
 
     return await response.json();
@@ -689,8 +740,8 @@ export class Poe2TradeApi {
         
         // Wait 3 seconds between requests (except for the last item)
         if (i < items.length - 1) {
-          console.log(`⏱️ Waiting 3 seconds before next request... (${i + 1}/${items.length})`);
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          console.log(`⏱️ Waiting 10 seconds before next request... (${i + 1}/${items.length})`);
+          await new Promise(resolve => setTimeout(resolve, 10000));
         }
         
       } catch (error) {
@@ -758,8 +809,8 @@ export class Poe2TradeApi {
         
         // Wait 3 seconds between requests (except for the last item)
         if (i < itemsToPrice.length - 1) {
-          console.log(`⏱️ Waiting 3 seconds before next request... (${i + 1}/${itemsToPrice.length})`);
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          console.log(`⏱️ Waiting 10 seconds before next request... (${i + 1}/${itemsToPrice.length})`);
+          await new Promise(resolve => setTimeout(resolve, 10000));
         }
         
       } catch (error) {

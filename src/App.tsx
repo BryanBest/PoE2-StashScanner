@@ -4,9 +4,10 @@ import AccountInput from "./components/AccountInput";
 import ItemCard from "./components/ItemCard";
 import Settings from "./components/Settings";
 import GearIcon from "./components/GearIcon";
+import ErrorPopup from "./components/ErrorPopup";
 import { StashedItem } from "./types";
 import { fetchStashedItems, fetchPricingDataIncremental } from "./mockData";
-import { Poe2TradeApi } from "./api/poe2TradeApi";
+import { Poe2TradeApi, ApiError } from "./api/poe2TradeApi";
 import { Poe2HelperApi } from "./api/poe2HelperApi";
 
 // Make APIs available globally for debugging
@@ -40,6 +41,8 @@ function App() {
   const [threshold, setThreshold] = useState<number>(10);
   const [isLiveSearchEnabled, setIsLiveSearchEnabled] = useState<boolean>(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isErrorPopupOpen, setIsErrorPopupOpen] = useState<boolean>(false);
   const liveSearchIntervalRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const itemsRef = useRef<StashedItem[]>([]);
@@ -103,6 +106,40 @@ function App() {
 
   // Set global conversion function for debugging
   globalConvertToExalts = convertToExalts;
+
+  // Error handling functions
+  const showError = (message: string) => {
+    setErrorMessage(message);
+    setIsErrorPopupOpen(true);
+    // Stop all operations immediately
+    stopAllOperations();
+  };
+
+  const hideError = () => {
+    setIsErrorPopupOpen(false);
+    setErrorMessage("");
+  };
+
+  const stopAllOperations = () => {
+    // Stop live search
+    stopLiveSearch();
+    // Stop loading
+    setIsLoadingItems(false);
+    // Clear any queued pricing states
+    setItems(prevItems => 
+      prevItems.map(item => ({ ...item, isQueuedForPricing: false }))
+    );
+  };
+
+  const handleApiError = (error: any, context: string) => {
+    console.error(`Error in ${context}:`, error);
+    
+    if (error instanceof ApiError) {
+      showError(`${context}: ${error.responseMessage}`);
+    } else {
+      showError(`${context}: ${error.message || 'An unexpected error occurred'}`);
+    }
+  };
 
   // Play alert sound for high-value items
   const playAlertSound = () => {
@@ -238,15 +275,15 @@ function App() {
         }
       }
     } catch (error) {
-      console.error("Error fetching items:", error);
-      setIsLoadingItems(false);
-      // You could add a toast notification or error state here
+      handleApiError(error, "Fetching items");
     }
   };
 
   const handlePriceCheck = async (itemsToPrice: StashedItem[] = items) => {
     if (itemsToPrice.length === 0) return;
-    
+
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
     // Set queued state for items that need pricing
     setItems(prevItems => 
       prevItems.map(item => 
@@ -282,12 +319,7 @@ function App() {
         );
       });
     } catch (error) {
-      console.error("Error fetching pricing data:", error);
-      
-      // Clear queued state for all items on error
-      setItems(prevItems => 
-        prevItems.map(item => ({ ...item, isQueuedForPricing: false }))
-      );
+      handleApiError(error, "Fetching pricing data");
     }
   };
 
@@ -370,9 +402,7 @@ function App() {
         }
         
       } catch (error) {
-        console.error('Live search failed:', error);
-        // Disable live search on error
-        stopLiveSearch();
+        handleApiError(error, "Live search");
       } finally {
         setIsLoadingItems(false);
       }
@@ -436,6 +466,12 @@ function App() {
         threshold={threshold}
         onThresholdChange={handleThresholdChange}
         isDisabled={isLiveSearchEnabled}
+      />
+
+      <ErrorPopup
+        isOpen={isErrorPopupOpen}
+        message={errorMessage}
+        onClose={hideError}
       />
 
       <main className="container">

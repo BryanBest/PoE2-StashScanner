@@ -29,7 +29,7 @@ const AccountInput: React.FC<AccountInputProps> = ({
 
   return (
     <div className="account-input-container">
-      <h2>Path of Exile 2 Stash Pricing Tool</h2>
+      <h2>StashScanner</h2>
       <form onSubmit={handleSubmit} className="account-form">
         <div className="input-group">
           <input
@@ -45,7 +45,7 @@ const AccountInput: React.FC<AccountInputProps> = ({
             className="fetch-button"
             disabled={isLoading || !accountName.trim() || isDisabled}
           >
-            {isLoading ? 'Loading...' : 'Fetch Stash Items'}
+            {isLoading ? 'Loading...' : 'Scan'}
           </button>
         </div>
         <div className="live-search-controls">
@@ -64,7 +64,7 @@ const AccountInput: React.FC<AccountInputProps> = ({
               }}
               disabled={!accountName.trim()}
             />
-            <span className="toggle-label">Live Search</span>
+            <span className="toggle-label">Live Scan</span>
           </label>
           {isLiveSearchEnabled && (
             <div className="countdown-display">

@@ -279,10 +279,10 @@ export class Poe2HelperApi {
         console.error(`Failed to get pricing for item ${item.name}:`, error);
       }
       
-      // Add 3 second delay between requests (except for the last item)
+      // Add 10 second delay between requests (except for the last item)
       if (i < items.length - 1) {
-        console.log('Waiting 3 seconds to avoid rate limits...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log('Waiting 10 seconds to avoid rate limits...');
+        await new Promise(resolve => setTimeout(resolve, 10000));
       }
     }
     
