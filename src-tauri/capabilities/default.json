@@ -7,6 +7,8 @@
     "core:default",
     "opener:default",
     "http:default",
+    "updater:default",
+    "process:default",
     {
       "identifier": "http:default",
       "allow": [
@@ -18,7 +20,10 @@
         },
         {
           "url": "https://poe2scout.com/api/*"
-        }        
+        },
+        {
+          "url": "https://github.com/BryanBest/PoE2-StashScanner/releases/latest/download/latest.json"
+        }
       ]
     }
   ]

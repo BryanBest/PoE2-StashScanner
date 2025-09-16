@@ -1,5 +1,6 @@
 import React from 'react';
 import './Settings.css';
+import { check } from '@tauri-apps/plugin-updater';
 
 interface SettingsProps {
   isOpen: boolean;
@@ -23,6 +24,25 @@ const Settings: React.FC<SettingsProps> = ({
   onThresholdChange,
   isDisabled = false
 }) => {
+  const handleCheckForUpdates = async () => {
+    try {
+      console.log('🔍 Manual update check triggered');
+      const update = await check();
+      if (update?.available) {
+        console.log('✅ Update available via manual check:', update);
+        // The main.tsx UpdateChecker will handle showing the dialog
+        // We just need to trigger a page reload to show the update dialog
+        window.location.reload();
+      } else {
+        console.log('ℹ️ No update available via manual check');
+        alert('No updates available. You are running the latest version.');
+      }
+    } catch (error) {
+      console.error('❌ Error during manual update check:', error);
+      alert('Failed to check for updates. Please try again later.');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -74,6 +94,16 @@ const Settings: React.FC<SettingsProps> = ({
               className="threshold-input"
               disabled={isDisabled}
             />
+          </div>
+          
+          <div className="settings-option">
+            <button 
+              onClick={handleCheckForUpdates}
+              className="update-check-button"
+              disabled={isDisabled}
+            >
+              Check for Updates
+            </button>
           </div>
         </div>
       </div>

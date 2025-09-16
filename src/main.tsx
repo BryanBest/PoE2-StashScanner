@@ -26,17 +26,27 @@ function UpdateChecker() {
       setIsChecking(true);
       setUpdateError(null);
       
+      console.log('🔍 Checking for updates...');
       const update = await check();
       
+      console.log('📋 Update check result:', {
+        update,
+        available: update?.available,
+        version: update?.version,
+        date: update?.date,
+        body: update?.body
+      });
+      
       if (update?.available) {
+        console.log('✅ Update available:', update);
         setUpdateAvailable(true);
-        console.log('Update available:', update);
+        setIsChecking(false); // Stop the loading screen
       } else {
-        console.log('No update available');
+        console.log('ℹ️ No update available');
         setIsChecking(false);
       }
     } catch (error) {
-      console.error('Error checking for updates:', error);
+      console.error('❌ Error checking for updates:', error);
       setUpdateError('Failed to check for updates');
       setIsChecking(false);
     }
@@ -91,6 +101,14 @@ function UpdateChecker() {
     setUpdateAvailable(false);
     setIsChecking(false);
   };
+
+  // Debug logging for render states
+  console.log('🎨 Render state:', {
+    isChecking,
+    updateAvailable,
+    isUpdating,
+    updateError
+  });
 
   // Show loading while checking for updates
   if (isChecking) {
@@ -149,7 +167,7 @@ function UpdateChecker() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999,
+        zIndex: 99999,
         color: 'white',
         fontFamily: 'Arial, sans-serif'
       }}>
@@ -227,7 +245,7 @@ function UpdateChecker() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999,
+        zIndex: 99999,
         color: 'white',
         fontFamily: 'Arial, sans-serif'
       }}>
