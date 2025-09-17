@@ -110,59 +110,51 @@ function App() {
   // Set global conversion function for debugging
   globalConvertToExalts = convertToExalts;
 
-  // Helper function to determine if an item's value is displayed as exalts
-  const isDisplayedAsExalts = (currency: string): boolean => {
-    // If already exalts, it's displayed as exalts
-    if (currency.toLowerCase() === 'exalted') {
-      return true;
-    }
 
-    // If we have conversion data, it will be displayed as exalts
-    const currencyRate = currencyValues[currency.toLowerCase()] || currencyValues[currency];
-    return !!(currencyRate && currencyRate !== 0);
-  };
-
-  // Sort items by estimated value (highest first), with exalts prioritized, non-exalt values above unknown values
+  // Sort items according to the specified order:
+  // 1. Items with exalt currency value, sorted by value, high to low
+  // 2. Items with other currency type, sorted by value, high to low  
+  // 3. Items with unknown value
   const sortItemsByValue = (items: StashedItem[]): StashedItem[] => {
     return [...items].sort((a, b) => {
-      // Items with unknown values go to the end
+      // Check if items have known values
       const aHasValue = a.estimatedValue !== undefined && a.estimatedValue !== null && a.currency;
       const bHasValue = b.estimatedValue !== undefined && b.estimatedValue !== null && b.currency;
       
+      // Handle unknown values (category 3)
       if (!aHasValue && !bHasValue) {
         // Both have unknown values, maintain original order
         return 0;
       }
       
       if (!aHasValue) {
-        // a has unknown value, b has known value (exalt or non-exalt) - a goes after b
+        // a has unknown value, b has known value - a goes after b (category 3 after 1/2)
         return 1;
       }
       
       if (!bHasValue) {
-        // b has unknown value, a has known value (exalt or non-exalt) - b goes after a
+        // b has unknown value, a has known value - b goes after a (category 3 after 1/2)
         return -1;
       }
       
-      // Both have known values, check if they're displayed as exalts
-      const aIsExalts = isDisplayedAsExalts(a.currency!);
-      const bIsExalts = isDisplayedAsExalts(b.currency!);
+      // Both have known values, determine if they're exalt currency (category 1) or other currency (category 2)
+      const aIsExaltCurrency = a.currency!.toLowerCase() === 'exalted';
+      const bIsExaltCurrency = b.currency!.toLowerCase() === 'exalted';
       
-      // Prioritize items displayed as exalts over non-exalt currencies
-      if (aIsExalts && !bIsExalts) {
-        return -1; // a (exalts) comes before b (non-exalt currency)
+      // Prioritize exalt currency items (category 1) over other currency items (category 2)
+      if (aIsExaltCurrency && !bIsExaltCurrency) {
+        return -1; // a (exalt) comes before b (other currency)
       }
       
-      if (!aIsExalts && bIsExalts) {
-        return 1; // b (exalts) comes before a (non-exalt currency)
+      if (!aIsExaltCurrency && bIsExaltCurrency) {
+        return 1; // b (exalt) comes before a (other currency)
       }
       
-      // Both are same type (both exalts or both non-exalt currencies), sort by value
-      const aConverted = convertToExalts(a.estimatedValue!, a.currency!);
-      const bConverted = convertToExalts(b.estimatedValue!, b.currency!);
+      // Both are same category (both exalt or both other currency), sort by value (high to low)
+      const aValue = a.estimatedValue!;
+      const bValue = b.estimatedValue!;
       
-      // Sort by value in descending order (highest first)
-      return bConverted.value - aConverted.value;
+      return bValue - aValue; // Descending order (highest first)
     });
   };
 
