@@ -380,8 +380,21 @@ export class Poe2TradeApi {
       
       let allStashedItems: StashedItem[] = [];
       
-      // Step 3: Add existing items to result
-      allStashedItems.push(...existingItems);
+      // Step 3: Add existing items that are still in the stash
+      const currentStashItemIds = new Set(searchResponse.result);
+      const existingItemsStillInStash = existingItems.filter(item => 
+        currentStashItemIds.has(item.id)
+      );
+      allStashedItems.push(...existingItemsStillInStash);
+      
+      // Log removed items for debugging
+      const removedItems = existingItems.filter(item => 
+        !currentStashItemIds.has(item.id)
+      );
+      if (removedItems.length > 0) {
+        console.log(`Removed ${removedItems.length} items that are no longer in stash:`, 
+          removedItems.map(item => `${item.name} (${item.id})`));
+      }
       
       // Step 4: Add cached items to result
       for (const itemId of searchResponse.result) {

@@ -108,6 +108,37 @@ function App() {
   // Set global conversion function for debugging
   globalConvertToExalts = convertToExalts;
 
+  // Sort items by estimated value (highest first), with unknown values last
+  const sortItemsByValue = (items: StashedItem[]): StashedItem[] => {
+    return [...items].sort((a, b) => {
+      // Items with unknown values go to the end
+      const aHasValue = a.estimatedValue !== undefined && a.estimatedValue !== null && a.currency;
+      const bHasValue = b.estimatedValue !== undefined && b.estimatedValue !== null && b.currency;
+      
+      if (!aHasValue && !bHasValue) {
+        // Both have unknown values, maintain original order
+        return 0;
+      }
+      
+      if (!aHasValue) {
+        // a has unknown value, b has known value - a goes after b
+        return 1;
+      }
+      
+      if (!bHasValue) {
+        // b has unknown value, a has known value - b goes after a
+        return -1;
+      }
+      
+      // Both have known values, convert to exalts and compare
+      const aConverted = convertToExalts(a.estimatedValue!, a.currency!);
+      const bConverted = convertToExalts(b.estimatedValue!, b.currency!);
+      
+      // Sort by value in descending order (highest first)
+      return bConverted.value - aConverted.value;
+    });
+  };
+
   // Error handling functions
   const showError = (message: string) => {
     setErrorMessage(message);
@@ -253,7 +284,8 @@ function App() {
     
     try {
       const fetchedItems = await fetchStashedItems(account, items);
-      setItems(fetchedItems);
+      const sortedItems = sortItemsByValue(fetchedItems);
+      setItems(sortedItems);
       
       // Hide the loading spinner once items are loaded and displayed
       setIsLoadingItems(false);
@@ -291,13 +323,15 @@ function App() {
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Set queued state for items that need pricing
-    setItems(prevItems => 
-      prevItems.map(item => 
+    setItems(prevItems => {
+      const updatedItems = prevItems.map(item => 
         itemsToPrice.some(needingItem => needingItem.id === item.id)
           ? { ...item, isQueuedForPricing: true }
           : item
-      )
-    );
+      );
+      // Maintain sorting even when setting queued state
+      return sortItemsByValue(updatedItems);
+    });
     
     try {
       // Use incremental pricing to update UI as each item gets priced
@@ -311,8 +345,8 @@ function App() {
         }
         
         // Update the specific item with its pricing data and clear queued state
-        setItems(prevItems => 
-          prevItems.map(item => 
+        setItems(prevItems => {
+          const updatedItems = prevItems.map(item => 
             item.id === itemId 
               ? {
                   ...item,
@@ -321,8 +355,10 @@ function App() {
                   isQueuedForPricing: false
                 }
               : item
-          )
-        );
+          );
+          // Re-sort items after updating pricing data
+          return sortItemsByValue(updatedItems);
+        });
       });
     } catch (error) {
       handleApiError(error, "Fetching pricing data");
@@ -394,7 +430,8 @@ function App() {
         // Get current items state at the time of the interval
         const currentItems = itemsRef.current; // Use ref to get current items
         const fetchedItems = await fetchStashedItems(currentAccountName, currentItems);
-        setItems(fetchedItems);
+        const sortedItems = sortItemsByValue(fetchedItems);
+        setItems(sortedItems);
         
         // Check if any items need pricing before triggering price check
         const itemsNeedingPricing = fetchedItems.filter(item => 

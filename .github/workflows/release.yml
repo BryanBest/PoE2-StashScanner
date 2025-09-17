@@ -42,7 +42,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: ${{ github.ref_name }}
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: 'Items are now sorted by estimated value in descending order. Items that are no longer in the stash are now removed from the list.'
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
