@@ -110,7 +110,19 @@ function App() {
   // Set global conversion function for debugging
   globalConvertToExalts = convertToExalts;
 
-  // Sort items by estimated value (highest first), with unknown values last
+  // Helper function to determine if an item's value is displayed as exalts
+  const isDisplayedAsExalts = (currency: string): boolean => {
+    // If already exalts, it's displayed as exalts
+    if (currency.toLowerCase() === 'exalted') {
+      return true;
+    }
+
+    // If we have conversion data, it will be displayed as exalts
+    const currencyRate = currencyValues[currency.toLowerCase()] || currencyValues[currency];
+    return !!(currencyRate && currencyRate !== 0);
+  };
+
+  // Sort items by estimated value (highest first), with exalts prioritized, non-exalt values above unknown values
   const sortItemsByValue = (items: StashedItem[]): StashedItem[] => {
     return [...items].sort((a, b) => {
       // Items with unknown values go to the end
@@ -123,16 +135,29 @@ function App() {
       }
       
       if (!aHasValue) {
-        // a has unknown value, b has known value - a goes after b
+        // a has unknown value, b has known value (exalt or non-exalt) - a goes after b
         return 1;
       }
       
       if (!bHasValue) {
-        // b has unknown value, a has known value - b goes after a
+        // b has unknown value, a has known value (exalt or non-exalt) - b goes after a
         return -1;
       }
       
-      // Both have known values, convert to exalts and compare
+      // Both have known values, check if they're displayed as exalts
+      const aIsExalts = isDisplayedAsExalts(a.currency!);
+      const bIsExalts = isDisplayedAsExalts(b.currency!);
+      
+      // Prioritize items displayed as exalts over non-exalt currencies
+      if (aIsExalts && !bIsExalts) {
+        return -1; // a (exalts) comes before b (non-exalt currency)
+      }
+      
+      if (!aIsExalts && bIsExalts) {
+        return 1; // b (exalts) comes before a (non-exalt currency)
+      }
+      
+      // Both are same type (both exalts or both non-exalt currencies), sort by value
       const aConverted = convertToExalts(a.estimatedValue!, a.currency!);
       const bConverted = convertToExalts(b.estimatedValue!, b.currency!);
       
