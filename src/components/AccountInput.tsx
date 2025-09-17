@@ -33,7 +33,11 @@ const AccountInput: React.FC<AccountInputProps> = ({
 
   return (
     <div className="account-input-container">
-      <h2>StashScanner</h2>
+      <img 
+        src="/images/stashscanner-logo.png" 
+        alt="StashScanner Logo" 
+        style={{ width: '500px', marginBottom: '10px' }}
+      />
       <form onSubmit={handleSubmit} className="account-form">
         <div className="input-group">
           <input

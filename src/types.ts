@@ -13,6 +13,7 @@ export interface StashedItem {
   stats: ItemStat[];
   estimatedValue?: number;
   currency?: string;
+  convertedValue?: number; // Value converted to exalts for sorting/display
   icon?: string;
   isQueuedForPricing?: boolean;
 }

@@ -65,24 +65,140 @@ function App() {
     }
   };
 
+  // Helper function to check if a currency is exalt-type
+  const isExaltCurrency = (currency: string): boolean => {
+    if (!currency) return false;
+    
+    const lower = currency.toLowerCase().trim();
+    // Check for various forms of exalt currency names
+    return lower === 'exalted' || lower === 'exalt' || lower === 'exalted orb' || lower === 'exalts' || lower.includes('exalt');
+  };
+
+  // Helper function to find closest currency match
+  const findClosestCurrencyMatch = (currency: string): string | null => {
+    if (!currency || Object.keys(currencyValues).length === 0) {
+      console.log(`Currency matching: No currency provided or no currency values available`);
+      return null;
+    }
+    
+    const normalized = currency.toLowerCase().trim();
+    const availableCurrencies = Object.keys(currencyValues);
+    
+    console.log(`Currency matching: Looking for "${currency}" (normalized: "${normalized}")`);
+    
+    // First try exact match
+    if (currencyValues[normalized]) {
+      console.log(`Currency matching: Found exact match "${normalized}"`);
+      return normalized;
+    }
+    
+    // Try common abbreviation expansions first
+    const commonExpansions: Record<string, string[]> = {
+      'aug': ['orb-of-augmentation', 'augmentation', 'orb-augmentation'],
+      'transmute': ['orb-of-transmutation', 'transmutation', 'orb-transmutation'],
+      'chance': ['orb-of-chance', 'orb-chance'],
+      'alchemy': ['orb-of-alchemy', 'orb-alchemy'],
+      'ancient': ['ancient-orb', 'orb-ancient'],
+      'binding': ['orb-of-binding', 'orb-binding'],
+      'chaos': ['chaos-orb', 'orb-chaos'],
+      'chromatic': ['chromatic-orb', 'orb-chromatic'],
+      'divine': ['divine-orb', 'orb-divine'],
+      'fusing': ['orb-of-fusing', 'fusing', 'orb-fusing'],
+      'jeweller': ['jeweller-orb', 'orb-jeweller', 'orb-of-jewelling'],
+      'regret': ['orb-of-regret', 'orb-regret'],
+      'scouring': ['orb-of-scouring', 'orb-scouring'],
+      'regal': ['regal-orb', 'orb-regal'],
+      'exalt': ['exalted-orb', 'orb-exalted'],
+      'vaal': ['vaal-orb', 'orb-vaal']
+    };
+    
+    // Check if we have a common expansion for this currency
+    if (commonExpansions[normalized]) {
+      console.log(`Currency matching: Trying common expansions for "${normalized}": [${commonExpansions[normalized].join(', ')}]`);
+      for (const expansion of commonExpansions[normalized]) {
+        if (currencyValues[expansion]) {
+          console.log(`Currency matching: Found expansion match "${expansion}"`);
+          return expansion;
+        }
+      }
+      console.log(`Currency matching: No expansion matches found`);
+    }
+    
+    // Try finding by includes match, but prefer shorter matches
+    const partialMatches = availableCurrencies.filter(key => 
+      key.includes(normalized) || normalized.includes(key)
+    );
+    
+    if (partialMatches.length > 0) {
+      console.log(`Currency matching: Found ${partialMatches.length} partial matches: [${partialMatches.join(', ')}]`);
+      
+      // Sort by length (prefer shorter) and then by how well it matches
+      partialMatches.sort((a, b) => {
+        // Prefer matches that start with the normalized currency
+        const aStartsWithNorm = a.startsWith(normalized);
+        const bStartsWithNorm = b.startsWith(normalized);
+        
+        if (aStartsWithNorm && !bStartsWithNorm) return -1;
+        if (!aStartsWithNorm && bStartsWithNorm) return 1;
+        
+        // Prefer shorter matches (less likely to be "perfect-" versions)
+        return a.length - b.length;
+      });
+      
+      console.log(`Currency matching: Best partial match after sorting: "${partialMatches[0]}"`);
+      return partialMatches[0];
+    }
+    
+    console.log(`Currency matching: No matches found for "${currency}"`);
+    return null; // Remove fuzzy matching for now as it's too aggressive
+  };
+
   // Convert any currency value to exalts
   const convertToExalts = (value: number, currency: string): { value: number; displayText: string } => {
+    console.log(`ConvertToExalts called: value=${value}, currency="${currency}"`);
+    
     // If already exalts, return as is
-    if (currency.toLowerCase() === 'exalted') {
+    if (isExaltCurrency(currency)) {
+      console.log(`Currency "${currency}" is already exalt type, returning value=${value}`);
       return { 
         value: value, 
         displayText: `${value} Exalted${value !== 1 ? 's' : ''}` 
       };
     }
 
-    // Get the conversion rate from currency values
-    const currencyRate = currencyValues[currency.toLowerCase()] || currencyValues[currency];
+    // Try to find exact match first, then closest match
+    const normalized = currency.toLowerCase().trim();
+    let currencyRate = currencyValues[normalized] || currencyValues[currency];
+    let matchedCurrency = normalized;
     
-    if (!currencyRate || currencyRate === 0) {
-      // If we don't have conversion data, show original value
+    console.log(`Direct lookup: "${normalized}" -> rate=${currencyRate}`);
+    console.log(`Available currencies:`, Object.keys(currencyValues).slice(0, 10), '... (total:', Object.keys(currencyValues).length, ')');
+    
+    // If no direct match, try to find closest match
+    if (!currencyRate) {
+      const closestMatch = findClosestCurrencyMatch(currency);
+      if (closestMatch) {
+        currencyRate = currencyValues[closestMatch];
+        matchedCurrency = closestMatch;
+        console.log(`Using closest match: "${closestMatch}" -> rate=${currencyRate}`);
+      }
+    }
+    
+    if (!currencyRate) {
+      // If we still don't have conversion data, show original value
+      console.log(`No conversion rate found for "${currency}", returning original value`);
       return { 
-        value: value, 
+        value: 0, // Set converted value to 0 for items with no rate
         displayText: `${value} ${currency.charAt(0).toUpperCase() + currency.slice(1)}` 
+      };
+    }
+    
+    // Handle currencies with 0 rate (worthless items)
+    if (currencyRate === 0) {
+      console.log(`Currency "${currency}" has 0 rate, treating as worthless`);
+      return {
+        value: 0,
+        displayText: `${value} ${currency.charAt(0).toUpperCase() + currency.slice(1)}`
       };
     }
 
@@ -90,6 +206,9 @@ function App() {
     // currencyRate represents how many exalts 1 unit of this currency is worth
     // So we multiply the value by the rate to get exalt equivalent
     const exaltValue = value * currencyRate;
+    
+    // Clean logging: show original currency, matched currency, and converted value
+    console.log(`Currency: "${currency}" -> "${matchedCurrency}" -> ${exaltValue.toFixed(3)} exalts`);
     
     // Format the display text
     if (exaltValue >= 1) {
@@ -112,14 +231,14 @@ function App() {
 
 
   // Sort items according to the specified order:
-  // 1. Items with exalt currency value, sorted by value, high to low
-  // 2. Items with other currency type, sorted by value, high to low  
+  // 1. Items with exalt currency value, sorted by converted exalt value, high to low
+  // 2. Items with other currency type, sorted by converted exalt value, high to low  
   // 3. Items with unknown value
   const sortItemsByValue = (items: StashedItem[]): StashedItem[] => {
     return [...items].sort((a, b) => {
-      // Check if items have known values
-      const aHasValue = a.estimatedValue !== undefined && a.estimatedValue !== null && a.currency;
-      const bHasValue = b.estimatedValue !== undefined && b.estimatedValue !== null && b.currency;
+      // Check if items have known values (now using convertedValue)
+      const aHasValue = a.convertedValue !== undefined && a.convertedValue !== null;
+      const bHasValue = b.convertedValue !== undefined && b.convertedValue !== null;
       
       // Handle unknown values (category 3)
       if (!aHasValue && !bHasValue) {
@@ -137,24 +256,22 @@ function App() {
         return -1;
       }
       
-      // Both have known values, determine if they're exalt currency (category 1) or other currency (category 2)
-      const aIsExaltCurrency = a.currency!.toLowerCase() === 'exalted';
-      const bIsExaltCurrency = b.currency!.toLowerCase() === 'exalted';
+      // Both have known values, determine category by original currency
+      const aIsExaltCurrency = a.currency ? isExaltCurrency(a.currency) : false;
+      const bIsExaltCurrency = b.currency ? isExaltCurrency(b.currency) : false;
       
-      // Prioritize exalt currency items (category 1) over other currency items (category 2)
+      // Prioritize items that are originally exalt currency (category 1) over other currencies (category 2)
       if (aIsExaltCurrency && !bIsExaltCurrency) {
-        return -1; // a (exalt) comes before b (other currency)
+        return -1; // a (original exalt) comes before b (other currency)
       }
       
       if (!aIsExaltCurrency && bIsExaltCurrency) {
-        return 1; // b (exalt) comes before a (other currency)
+        return 1; // b (original exalt) comes before a (other currency)
       }
       
-      // Both are same category (both exalt or both other currency), sort by value (high to low)
-      const aValue = a.estimatedValue!;
-      const bValue = b.estimatedValue!;
-      
-      return bValue - aValue; // Descending order (highest first)
+      // Both are same category (both original exalt or both other currency)
+      // Sort by convertedValue (high to low)
+      return b.convertedValue! - a.convertedValue!;
     });
   };
 
@@ -226,13 +343,11 @@ function App() {
   };
 
   // Check if item value exceeds threshold and play alert
-  const checkThresholdAlert = (item: StashedItem, pricing: any) => {
-    if (pricing.estimatedValue && pricing.currency) {
-      const converted = convertToExalts(pricing.estimatedValue, pricing.currency);
-      if (converted.value >= threshold) {
-        console.log(`High-value item detected: ${item.name} - ${converted.displayText}`);
-        playAlertSound();
-      }
+  // Uses stored convertedValue for threshold comparison
+  const checkThresholdAlert = (item: StashedItem) => {
+    if (item.convertedValue && item.convertedValue >= threshold) {
+      console.log(`High-value item detected: ${item.name} - ${item.convertedValue.toFixed(3)} exalts (threshold: ${threshold})`);
+      playAlertSound();
     }
   };
 
@@ -321,7 +436,7 @@ function App() {
       } else {
         // Check if any items need pricing before triggering price check
         const itemsNeedingPricing = fetchedItems.filter(item => 
-          item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
+          item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null || item.convertedValue === undefined || item.convertedValue === null
         );
         
         if (itemsNeedingPricing.length > 0) {
@@ -372,13 +487,8 @@ function App() {
     try {
       // Use incremental pricing to update UI as each item gets priced
       await fetchPricingDataIncremental(itemsToPrice, (itemId: string, pricing) => {
-        // Find the item to check threshold
-        const item = itemsToPrice.find(item => item.id === itemId);
-        
-        // Check threshold and play alert if needed
-        if (item) {
-          checkThresholdAlert(item, pricing);
-        }
+        // Calculate converted value using our currency matching logic
+        const converted = convertToExalts(pricing.estimatedValue, pricing.currency);
         
         // Update the specific item with its pricing data and clear queued state
         setItems(prevItems => {
@@ -388,10 +498,18 @@ function App() {
                   ...item,
                   estimatedValue: pricing.estimatedValue,
                   currency: pricing.currency,
+                  convertedValue: converted.value,
                   isQueuedForPricing: false
                 }
               : item
           );
+          
+          // Check threshold and play alert for the updated item
+          const updatedItem = updatedItems.find(item => item.id === itemId);
+          if (updatedItem) {
+            checkThresholdAlert(updatedItem);
+          }
+          
           // Re-sort items after updating pricing data
           return sortItemsByValue(updatedItems);
         });
@@ -467,7 +585,7 @@ function App() {
       
       // Check if any items need pricing before triggering price check
       const itemsNeedingPricing = fetchedItems.filter(item => 
-        item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
+        item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null || item.convertedValue === undefined || item.convertedValue === null
       );
       
       if (itemsNeedingPricing.length > 0) {
@@ -610,7 +728,7 @@ function App() {
         <div className="items-container">
           <div className="items-grid">
             {items.map((item) => (
-              <ItemCard key={item.id} item={item} convertToExalts={convertToExalts} />
+              <ItemCard key={item.id} item={item} />
             ))}
           </div>
         </div>

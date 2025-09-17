@@ -4,10 +4,9 @@ import './ItemCard.css';
 
 interface ItemCardProps {
   item: StashedItem;
-  convertToExalts: (value: number, currency: string) => { value: number; displayText: string };
 }
 
-const ItemCard: React.FC<ItemCardProps> = ({ item, convertToExalts }) => {
+const ItemCard: React.FC<ItemCardProps> = ({ item }) => {
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
       case 'unique': return '#af6025';
@@ -81,11 +80,24 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, convertToExalts }) => {
             <span 
               className="value-amount"
               style={{ 
-                color: (item.estimatedValue && item.estimatedValue > 0) ? 'inherit' : '#ff4444' 
+                color: (item.convertedValue && item.convertedValue > 0) ? 'inherit' : '#ff4444' 
               }}
             >
-              {item.estimatedValue && item.estimatedValue > 0 && item.currency
-                ? convertToExalts(item.estimatedValue, item.currency).displayText
+              {item.convertedValue && item.convertedValue > 0
+                ? (() => {
+                    if (item.convertedValue >= 1) {
+                      // 1 or greater: round to nearest integer
+                      const rounded = Math.round(item.convertedValue);
+                      return `${rounded} Exalted${rounded !== 1 ? 's' : ''}`;
+                    } else {
+                      // Less than 1: round down to 1 decimal place
+                      const roundedDown = Math.floor(item.convertedValue * 10) / 10;
+                      if (roundedDown === 0) {
+                        return '0 Exalteds';
+                      }
+                      return `${roundedDown.toFixed(1)} Exalteds`;
+                    }
+                  })()
                 : 'Value Unknown'
               }
             </span>
