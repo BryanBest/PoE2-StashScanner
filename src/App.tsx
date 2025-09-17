@@ -538,6 +538,12 @@ function App() {
       // Stop live search immediately - this only stops the interval, doesn't interrupt ongoing operations
       stopLiveSearch();
     } else {
+      // Check if operations are in progress before starting auto scan
+      if (isPricingInProgress || isLoadingItems) {
+        console.log('Cannot start auto scan: operations are currently in progress');
+        return;
+      }
+      
       // Start live search with the provided account name
       startLiveSearch(currentAccountName);
     }
@@ -604,6 +610,7 @@ function App() {
           countdownSeconds={countdownSeconds}
           isDisabled={isLiveSearchEnabled || isPricingInProgress || isLoadingItems}
           isPricingInProgress={isPricingInProgress}
+          canStartAutoScan={!isPricingInProgress && !isLoadingItems}
         />
       
 

@@ -9,6 +9,7 @@ interface AccountInputProps {
   countdownSeconds: number;
   isDisabled: boolean;
   isPricingInProgress: boolean;
+  canStartAutoScan: boolean;
 }
 
 const AccountInput: React.FC<AccountInputProps> = ({ 
@@ -18,7 +19,8 @@ const AccountInput: React.FC<AccountInputProps> = ({
   onLiveSearchToggle, 
   countdownSeconds, 
   isDisabled,
-  isPricingInProgress
+  isPricingInProgress,
+  canStartAutoScan
 }) => {
   const [accountName, setAccountName] = useState('');
 
@@ -57,14 +59,14 @@ const AccountInput: React.FC<AccountInputProps> = ({
               checked={isLiveSearchEnabled}
               onChange={() => {
                 if (isLiveSearchEnabled) {
-                  // Disabling live search - no account name needed
+                  // Disabling live search - no account name needed, always allowed
                   onLiveSearchToggle('');
                 } else {
-                  // Enabling live search - need account name
+                  // Enabling live search - need account name and must be allowed
                   onLiveSearchToggle(accountName);
                 }
               }}
-              disabled={!accountName.trim() || isDisabled}
+              disabled={!accountName.trim() || (!isLiveSearchEnabled && !canStartAutoScan)}
             />
             <span className="toggle-label">Live Scan</span>
           </label>
