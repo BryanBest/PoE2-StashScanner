@@ -42,7 +42,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: ${{ github.ref_name }}
-          releaseBody: 'Items are now sorted by estimated value in descending order. Items that are no longer in the stash are now removed from the list.'
+          releaseBody: 'Improved currency conversion logic and error handling, Enhanced item sorting by value and currency type, Various bug fixes and UI improvements'
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
