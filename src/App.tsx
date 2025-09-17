@@ -584,7 +584,6 @@ function App() {
 
       {items.length > 0 && (
         <div className="items-container">
-          <h3>Stashed Items for {accountName}</h3>
           <div className="items-grid">
             {items.map((item) => (
               <ItemCard key={item.id} item={item} convertToExalts={convertToExalts} />
