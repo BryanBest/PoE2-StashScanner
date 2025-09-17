@@ -44,6 +44,8 @@ function App() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isErrorPopupOpen, setIsErrorPopupOpen] = useState<boolean>(false);
   const [isPricingInProgress, setIsPricingInProgress] = useState<boolean>(false);
+  const [isPricingCompleteForCurrentScan, setIsPricingCompleteForCurrentScan] = useState<boolean>(true);
+  const [isFetchCompleteForCurrentScan, setIsFetchCompleteForCurrentScan] = useState<boolean>(true);
   const liveSearchIntervalRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const itemsRef = useRef<StashedItem[]>([]);
@@ -159,6 +161,9 @@ function App() {
     setIsLoadingItems(false);
     // Stop pricing
     setIsPricingInProgress(false);
+    // Reset completion states
+    setIsPricingCompleteForCurrentScan(true);
+    setIsFetchCompleteForCurrentScan(true);
     // Clear any queued pricing states
     setItems(prevItems => 
       prevItems.map(item => ({ ...item, isQueuedForPricing: false }))
@@ -272,6 +277,7 @@ function App() {
 
   const handleFetchItems = async (account: string) => {
     setIsLoadingItems(true);
+    setIsFetchCompleteForCurrentScan(false);
     
     // Clear cache and items if switching to a different account
     // Only clear if we actually had a previous account name and it's different
@@ -289,9 +295,12 @@ function App() {
       
       // Hide the loading spinner once items are loaded and displayed
       setIsLoadingItems(false);
+      setIsFetchCompleteForCurrentScan(true);
       
       if (fetchedItems.length === 0) {
         console.log(`No items found for account: ${account}`);
+        // No items found, mark pricing as complete too
+        setIsPricingCompleteForCurrentScan(true);
       } else {
         // Check if any items need pricing before triggering price check
         const itemsNeedingPricing = fetchedItems.filter(item => 
@@ -307,18 +316,28 @@ function App() {
           });
         } else {
           console.log(`Loaded ${fetchedItems.length} items, all already have pricing data`);
+          // No items need pricing, mark as complete immediately
+          setIsPricingCompleteForCurrentScan(true);
         }
       }
     } catch (error) {
       handleApiError(error, "Fetching items");
+      // On error, mark both as complete to prevent hanging
+      setIsFetchCompleteForCurrentScan(true);
+      setIsPricingCompleteForCurrentScan(true);
     }
   };
 
   const handlePriceCheck = async (itemsToPrice: StashedItem[] = items) => {
-    if (itemsToPrice.length === 0) return;
+    if (itemsToPrice.length === 0) {
+      // No items to price, mark as complete
+      setIsPricingCompleteForCurrentScan(true);
+      return;
+    }
 
-    // Set pricing in progress
+    // Set pricing in progress and mark as not complete for current scan
     setIsPricingInProgress(true);
+    setIsPricingCompleteForCurrentScan(false);
 
     await new Promise(resolve => setTimeout(resolve, 3000));
 
@@ -365,6 +384,7 @@ function App() {
     } finally {
       // Pricing completed (success or error)
       setIsPricingInProgress(false);
+      setIsPricingCompleteForCurrentScan(true);
     }
   };
 
@@ -397,17 +417,10 @@ function App() {
     console.log('Threshold changed to:', newThreshold);
   };
 
-  // Live search functionality
-  const startLiveSearch = async (currentAccountName: string) => {
-    if (!currentAccountName.trim()) {
-      console.log('Cannot start live search: no account name entered');
-      return;
-    }
-
-    console.log('Starting live search for account:', currentAccountName);
-    setIsLiveSearchEnabled(true);
+  // Function to start countdown timer
+  const startCountdown = () => {
     setCountdownSeconds(60);
-
+    
     // Start the countdown
     countdownIntervalRef.current = setInterval(() => {
       setCountdownSeconds(prev => {
@@ -417,41 +430,64 @@ function App() {
         return prev - 1;
       });
     }, 1000);
+  };
+
+  // Function to perform a single scan cycle
+  const performScanCycle = async (currentAccountName: string) => {
+    // Use the current items state to preserve pricing data
+    setIsLoadingItems(true);
+    setIsFetchCompleteForCurrentScan(false);
+    
+    try {
+      // Get current items state at the time of the scan
+      const currentItems = itemsRef.current; // Use ref to get current items
+      const fetchedItems = await fetchStashedItems(currentAccountName, currentItems);
+      const sortedItems = sortItemsByValue(fetchedItems);
+      setItems(sortedItems);
+      
+      // Mark fetch as complete
+      setIsFetchCompleteForCurrentScan(true);
+      
+      // Check if any items need pricing before triggering price check
+      const itemsNeedingPricing = fetchedItems.filter(item => 
+        item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
+      );
+      
+      if (itemsNeedingPricing.length > 0) {
+        console.log(`Live search: ${fetchedItems.length} items total, ${itemsNeedingPricing.length} need pricing`);
+        await handlePriceCheck(itemsNeedingPricing);
+      } else {
+        console.log(`Live search: ${fetchedItems.length} items, all already have pricing data`);
+        // No items need pricing, mark as complete immediately
+        setIsPricingCompleteForCurrentScan(true);
+      }
+      
+    } catch (error) {
+      handleApiError(error, "Live search");
+      // On error, mark both as complete to prevent hanging
+      setIsFetchCompleteForCurrentScan(true);
+      setIsPricingCompleteForCurrentScan(true);
+    } finally {
+      setIsLoadingItems(false);
+    }
+  };
+
+  // Live search functionality
+  const startLiveSearch = async (currentAccountName: string) => {
+    if (!currentAccountName.trim()) {
+      console.log('Cannot start live search: no account name entered');
+      return;
+    }
+
+    console.log('Starting live search for account:', currentAccountName);
+    setIsLiveSearchEnabled(true);
 
     // Perform initial fetch
-    await handleFetchItems(currentAccountName);
+    await performScanCycle(currentAccountName);
 
     // Set up interval for subsequent fetches
     liveSearchIntervalRef.current = setInterval(async () => {
-      // Use the current items state to preserve pricing data
-      setIsLoadingItems(true);
-      
-      try {
-        // Get current items state at the time of the interval
-        const currentItems = itemsRef.current; // Use ref to get current items
-        const fetchedItems = await fetchStashedItems(currentAccountName, currentItems);
-        const sortedItems = sortItemsByValue(fetchedItems);
-        setItems(sortedItems);
-        
-        // Check if any items need pricing before triggering price check
-        const itemsNeedingPricing = fetchedItems.filter(item => 
-          item.estimatedValue === undefined || item.estimatedValue === null || item.currency === undefined || item.currency === null
-        );
-        
-        if (itemsNeedingPricing.length > 0) {
-          console.log(`Live search: ${fetchedItems.length} items total, ${itemsNeedingPricing.length} need pricing`);
-          handlePriceCheck(itemsNeedingPricing).catch(error => {
-            console.error("Error during live search price check:", error);
-          });
-        } else {
-          console.log(`Live search: ${fetchedItems.length} items, all already have pricing data`);
-        }
-        
-      } catch (error) {
-        handleApiError(error, "Live search");
-      } finally {
-        setIsLoadingItems(false);
-      }
+      await performScanCycle(currentAccountName);
     }, 60000); // 60 seconds
   };
 
@@ -486,6 +522,20 @@ function App() {
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+
+  // Start countdown when both fetch and pricing are complete for current scan and live search is enabled
+  useEffect(() => {
+    if (isLiveSearchEnabled && isFetchCompleteForCurrentScan && isPricingCompleteForCurrentScan && !isPricingInProgress && !isLoadingItems) {
+      // Clear any existing countdown
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      
+      // Start new countdown
+      startCountdown();
+    }
+  }, [isLiveSearchEnabled, isFetchCompleteForCurrentScan, isPricingCompleteForCurrentScan, isPricingInProgress, isLoadingItems]);
 
   // Cleanup intervals on component unmount
   useEffect(() => {
